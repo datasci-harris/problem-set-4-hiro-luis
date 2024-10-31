@@ -202,7 +202,7 @@ chart_unique
 ```
 
     b.
-The numbers of unique hospitals are the same as the numbers of observations for all years we examined. This suggests that this dataset is structured so that each row contains parameters/attributions of each hospital.
+    The numbers of unique hospitals are the same as the numbers of observations for all years we examined. This suggests that this dataset is structured so that each row contains parameters/attributions of each hospital.
 
 ## Identify hospital closures in POS file (15 pts) (*)
 
@@ -216,8 +216,48 @@ The numbers of unique hospitals are the same as the numbers of observations for 
 ## Download Census zip code shapefile (10 pt) 
 
 1. 
-    a.
+    a. The file types and the   types of information for each of those included in the data is below;
+
+      - .shp : feature geometrics
+
+      - .shx : positional index
+
+      - .dbf : attribute information
+
+      - .prj : description about the CRS
+
+      - .xml : metadata for the data
+      
     b. 
+
+```{python}
+# Define a function to get the file size
+def get_filesize(path):
+    size = os.path.getsize(path)
+    if size > (1024 ** 2):
+        size = size / (1024 ** 2)
+        result = f"{round(size,1)}MB"
+    elif size > 1024:
+        size = size / 1024
+        result = f"{round(size,1)}KB"
+    else:
+        result = f"{round(size,1)}bytes"
+    return result
+
+# Get the file sizes for each file
+shape_filetypes = ["shp", "shx", "dbf", "prj", "xml"]
+
+path_shape = [os.path.join(base, "gz_2010_us_860_00_500k", f"gz_2010_us_860_00_500k.{x}") for x in shape_filetypes]
+
+shape_filesizes = pd.DataFrame(
+  {"file": [f"gz_2010_us_860_00_500k.{x}" for x in shape_filetypes],
+  "size":[get_filesize(x) for x in path_shape]
+  }
+)
+
+print(shape_filesizes)
+```
+
 2. 
 
 ## Calculate zip code’s distance to the nearest hospital (20 pts) (*)
