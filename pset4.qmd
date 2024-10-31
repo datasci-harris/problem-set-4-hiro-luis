@@ -55,8 +55,9 @@ We use (`*`) to indicate a problem that we think might be time consuming.
 **Important:** Repositories are for tracking code. **Do not commit the data or shapefiles to your repo.** The best way to do this is with `.gitignore`, which we have covered in class. If you do accidentally commit the data, Github has a [guide](https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-large-files-on-github#removing-files-from-a-repositorys-history). The best course of action depends on whether you have pushed yet. This also means that both partners will have to download the initial raw data and any data cleaning code will need to be re-run on both partners' computers.
 
 ```{python}
-import pandas as pd
 import os
+import pandas as pd
+import altair as alt
 
 import warnings 
 warnings.filterwarnings('ignore')
@@ -89,10 +90,10 @@ The variables we selected are;
 ```{python}
 # Set the absolute path of the data folder
 base = (r"C:\Users\hkura\Documents\Uchicago\04 2024 Autumn\Python2\problem-set-4-hiro-luis\data")
-path_dataset = os.path.join(base,"pos2016.csv")
+path_data_2016 = os.path.join(base,"pos2016.csv")
 
 # Load 2016 dataset
-df_pos2016 = pd.read_csv(path_dataset)
+df_pos2016 = pd.read_csv(path_data_2016, encoding = "utf-8")
 
 # Define function to subset a dataset for short-term hospitals
 def subset_short_term(df):
@@ -105,11 +106,9 @@ df_pos2016_short = subset_short_term(df_pos2016)
 
     a.    
 ```{python}
-# Count the column number
-print(len(df_pos2016_short))
-
-# Check if there are no PRVDR_NUM with more than 2 columns
-print(len(df_pos2016_short["PRVDR_NUM"].value_counts()))
+# Count the number of unique providers
+val_count_2016 = len(df_pos2016_short["PRVDR_NUM"].value_counts())
+print()
 ```
 
     This subset for short-term hospitals in 2016 includes 7245 hospitals.
@@ -125,6 +124,62 @@ print(len(df_pos2016_short["PRVDR_NUM"].value_counts()))
     As both the dataset we use and the cross-reference are both published by Centers for Medicare & Medicaid Services, it might be plausible to assume their credibilities. And as the dataset dictionary says nothing about change in definition of the provider categories/sub-categories. Then one reason we can consider is, for instance, the change in the data gathering methods. 
 
 3. 
+
+```{python}
+# Load 2017-2019 datasets
+path_data_2017 = os.path.join(base,"pos2017.csv")
+path_data_2018 = os.path.join(base,"pos2018.csv")
+path_data_2019 = os.path.join(base,"pos2019.csv")
+df_pos2017 = pd.read_csv(path_data_2017, encoding = "utf-8")
+df_pos2018 = pd.read_csv(path_data_2018, encoding = "latin1")
+df_pos2019 = pd.read_csv(path_data_2019, encoding = "latin1")
+
+# Clean 2018, 2019 datasets: fix colname
+def fix_col(df):
+  col = df.columns.tolist()
+  col[0] = "PRVDR_NUM"
+  df.columns = col
+  return df
+df_pos2018 = fix_col(df_pos2018)
+df_pos2019 = fix_col(df_pos2019)
+
+# Create short-term hospitals subsets for 2017-2019 datasets
+df_pos2017_short = subset_short_term(df_pos2017)
+df_pos2018_short = subset_short_term(df_pos2018)
+df_pos2019_short = subset_short_term(df_pos2019)
+
+# Count the number of unique providers, including 2016
+val_count = [val_count_2016, len(df_pos2017_short["PRVDR_NUM"].value_counts()), len(df_pos2018_short["PRVDR_NUM"].value_counts()), len(df_pos2019_short["PRVDR_NUM"].value_counts())]
+
+num_short_term = pd.DataFrame([val_count])
+num_short_term.columns = list(range(2016, 2020, 1))
+
+num_short_term
+```
+
+  The number for q4 in 2017/2018/2019 is on similar level with 2016, which are unmatched with the cross-reference.
+
+```{python}
+# Add "DATA_YEAR" column to each subsets
+df_pos2016_short["DATA_YEAR"] = 2016
+df_pos2017_short["DATA_YEAR"] = 2017
+df_pos2018_short["DATA_YEAR"] = 2018
+df_pos2019_short["DATA_YEAR"] = 2019
+
+# Concaterate the subsets
+df_pos = pd.concat([df_pos2016_short, df_pos2017_short, df_pos2018_short, df_pos2019_short])
+
+# Turn off the row number limit
+alt.data_transformers.disable_max_rows()
+
+# Plot the number of observation for each subset's year
+chart_short = alt.Chart(df_pos).mark_line().encode(
+    alt.X("DATA_YEAR:N", title = "Subset Year (Q4)", axis = alt.Axis(labelAngle = 0)),
+    alt.Y("count()", title = "Number of Observation", scale = alt.Scale(domain = [7000,8000]))
+).properties(width = 250, height = 250)
+chart_short
+```
+
 4. 
     a.
     b.
