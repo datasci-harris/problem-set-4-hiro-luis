@@ -263,7 +263,6 @@ print(shape_filesizes)
 2. 
 
 ```{python}
-#| eval: false
 # Load the shp file
 path_shp = os.path.join(base, r"gz_2010_us_860_00_500k\gz_2010_us_860_00_500k.shp")
 df_shp = gpd.read_file(path_shp)
@@ -294,7 +293,7 @@ summary_pos2016_short_tx
 
 ```{python}
 # Merge the dataframes
-df_shp_tx = df_shp_tx.merge(
+df_shp_tx_merge = df_shp_tx.merge(
     summary_pos2016_short_tx,
     left_on = "ZCTA5",
     right_on = "ZIP code",
@@ -302,7 +301,7 @@ df_shp_tx = df_shp_tx.merge(
 )
 
 # Plot the number of hospital in TX on the map
-df_shp_tx.plot(column = "Number of hospitals", legend = "True")
+df_shp_tx_merge.plot(column = "Number of hospitals", linewidth = 0.5, edgecolor = "0.8", legend = "True")
 plt.axis("off")
 plt.show
 ```
@@ -323,6 +322,11 @@ plt.show
 ## Effects of closures on access in Texas (15 pts)
 
 1. 
+
+```{python}
+
+```
+
 2. 
 3. 
 4. 
