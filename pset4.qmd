@@ -93,8 +93,8 @@ The variables we selected are;
 
 ```{python}
 # Set the absolute path of the data folder
-base = (r"C:\Users\hkura\Documents\Uchicago\04 2024 Autumn\Python2\problem-set-4-hiro-luis\data")
-# base = (r"C:\Users\LUIS\Documents\GitHub\problem-set-4-hiro-luis\data")
+# base = (r"C:\Users\hkura\Documents\Uchicago\04 2024 Autumn\Python2\problem-set-4-hiro-luis\data")
+base = (r"C:\Users\LUIS\Documents\GitHub\problem-set-4-hiro-luis\data")
 path_data_2016 = os.path.join(base, "pos2016.csv")
 
 # Load 2016 dataset
