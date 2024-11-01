@@ -93,8 +93,8 @@ The variables we selected are;
 
 ```{python}
 # Set the absolute path of the data folder
-# base = (r"C:\Users\hkura\Documents\Uchicago\04 2024 Autumn\Python2\problem-set-4-hiro-luis\data")
-base = (r"C:\Users\LUIS\Documents\GitHub\problem-set-4-hiro-luis\data")
+base = (r"C:\Users\hkura\Documents\Uchicago\04 2024 Autumn\Python2\problem-set-4-hiro-luis\data")
+# base = (r"C:\Users\LUIS\Documents\GitHub\problem-set-4-hiro-luis\data")
 path_data_2016 = os.path.join(base, "pos2016.csv")
 
 # Load 2016 dataset
@@ -181,14 +181,14 @@ df_pos2018_short["DATA_YEAR"] = 2018
 df_pos2019_short["DATA_YEAR"] = 2019
 
 # Concaterate the subsets
-df_pos_short = pd.concat(
+df_append = pd.concat(
     [df_pos2016_short, df_pos2017_short, df_pos2018_short, df_pos2019_short])
 
 # Turn off the row number limit
 alt.data_transformers.disable_max_rows()
 
 # Plot the number of observation for each subset's year
-chart_obs = alt.Chart(df_pos).mark_line().encode(
+chart_obs = alt.Chart(df_append).mark_line().encode(
     alt.X("DATA_YEAR:N", title = "Year (Q4)", axis = alt.Axis(labelAngle = 0)),
     alt.Y("count()", title = "Number of Observation", scale = alt.Scale(domain = [7000,8000]))
 ).properties(width = 250, height = 250)
