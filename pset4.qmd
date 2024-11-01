@@ -61,7 +61,7 @@ import altair as alt
 import geopandas as gpd
 import matplotlib.pyplot as plt
 
-import warnings 
+import warnings
 warnings.filterwarnings('ignore')
 ```
 
@@ -87,20 +87,27 @@ The variables we selected are;
 
 - TRMNTN_EXPRTN_DT: date the provider was terminated
 
+- PGM_TRMNTN_CD: indicates the current termination status for the provider
+
 2. 
 
 ```{python}
 # Set the absolute path of the data folder
-base = (r"C:\Users\hkura\Documents\Uchicago\04 2024 Autumn\Python2\problem-set-4-hiro-luis\data")
-path_data_2016 = os.path.join(base,"pos2016.csv")
+# base = (r"C:\Users\hkura\Documents\Uchicago\04 2024 Autumn\Python2\problem-set-4-hiro-luis\data")
+base = (r"C:\Users\LUIS\Documents\GitHub\problem-set-4-hiro-luis\data")
+path_data_2016 = os.path.join(base, "pos2016.csv")
 
 # Load 2016 dataset
-df_pos2016 = pd.read_csv(path_data_2016, encoding = "utf-8")
+df_pos2016 = pd.read_csv(path_data_2016, encoding="utf-8")
 
 # Define function to subset a dataset for short-term hospitals
+
+
 def subset_short_term(df):
-    df_result = df[(df["PRVDR_CTGRY_CD"] == 1)&(df["PRVDR_CTGRY_SBTYP_CD"] == 1)]
+    df_result = df[(df["PRVDR_CTGRY_CD"] == 1) &
+                   (df["PRVDR_CTGRY_SBTYP_CD"] == 1)]
     return df_result
+
 
 # Create short-term hospitals subsets for 2016 dataset
 df_pos2016_short = subset_short_term(df_pos2016)
@@ -128,19 +135,23 @@ print(len(df_pos2016_short))
 
 ```{python}
 # Load 2017-2019 datasets
-path_data_2017 = os.path.join(base,"pos2017.csv")
-path_data_2018 = os.path.join(base,"pos2018.csv")
-path_data_2019 = os.path.join(base,"pos2019.csv")
-df_pos2017 = pd.read_csv(path_data_2017, encoding = "utf-8")
-df_pos2018 = pd.read_csv(path_data_2018, encoding = "latin1")
-df_pos2019 = pd.read_csv(path_data_2019, encoding = "latin1")
+path_data_2017 = os.path.join(base, "pos2017.csv")
+path_data_2018 = os.path.join(base, "pos2018.csv")
+path_data_2019 = os.path.join(base, "pos2019.csv")
+df_pos2017 = pd.read_csv(path_data_2017, encoding="utf-8")
+df_pos2018 = pd.read_csv(path_data_2018, encoding="latin1")
+df_pos2019 = pd.read_csv(path_data_2019, encoding="latin1")
 
 # Clean 2018, 2019 datasets: fix colname
+
+
 def fix_col(df):
-  col = df.columns.tolist()
-  col[0] = "PRVDR_NUM"
-  df.columns = col
-  return df
+    col = df.columns.tolist()
+    col[0] = "PRVDR_NUM"
+    df.columns = col
+    return df
+
+
 df_pos2018 = fix_col(df_pos2018)
 df_pos2019 = fix_col(df_pos2019)
 
@@ -148,6 +159,7 @@ df_pos2019 = fix_col(df_pos2019)
 df_pos2017_short = subset_short_term(df_pos2017)
 df_pos2018_short = subset_short_term(df_pos2018)
 df_pos2019_short = subset_short_term(df_pos2019)
+
 
 # Summarize the number of observations for each subset
 df_summary_obs = pd.DataFrame(
@@ -169,7 +181,8 @@ df_pos2018_short["DATA_YEAR"] = 2018
 df_pos2019_short["DATA_YEAR"] = 2019
 
 # Concaterate the subsets
-df_pos = pd.concat([df_pos2016_short, df_pos2017_short, df_pos2018_short, df_pos2019_short])
+df_pos_short = pd.concat(
+    [df_pos2016_short, df_pos2017_short, df_pos2018_short, df_pos2019_short])
 
 # Turn off the row number limit
 alt.data_transformers.disable_max_rows()
@@ -209,9 +222,117 @@ chart_unique
 ## Identify hospital closures in POS file (15 pts) (*)
 
 1. 
+
+```{python}
+# Make termination status per year a separate column
+df_pos2016.rename(
+    columns={"PGM_TRMNTN_CD": "PGM_TRMNTN_CD_2016"}, inplace=True)
+df_pos2017.rename(
+    columns={"PGM_TRMNTN_CD": "PGM_TRMNTN_CD_2017"}, inplace=True)
+df_pos2018.rename(
+    columns={"PGM_TRMNTN_CD": "PGM_TRMNTN_CD_2018"}, inplace=True)
+df_pos2019.rename(
+    columns={"PGM_TRMNTN_CD": "PGM_TRMNTN_CD_2019"}, inplace=True)
+
+# Merge dfs
+df_list = [df_pos2017, df_pos2018, df_pos2019]
+df_pos = df_pos2016
+
+for df in df_list:
+    last_col = df.columns[-1]
+    df_pos = pd.merge(
+        df_pos, df[["PRVDR_NUM", last_col]], on="PRVDR_NUM", how="left")
+
+# Subset active hospitals in 2016
+df_pos = df_pos[df_pos["PGM_TRMNTN_CD_2016"] == 0]
+```
+
+```{python}
+# Add suspected termination year
+def add_termination_year(row):
+    if row["PGM_TRMNTN_CD_2017"] != 0:
+        return 2017
+    elif row["PGM_TRMNTN_CD_2018"] != 0:
+        return 2018
+    elif row["PGM_TRMNTN_CD_2019"] != 0:
+        return 2019
+    return None
+
+
+df_pos["TRMNTN_YEAR"] = df_pos.apply(add_termination_year, axis=1)
+```
+
+```{python}
+# Create list of closed hospitals
+closed_hospitals = []
+closed_hospitals = df_pos["FAC_NAME"][df_pos["TRMNTN_YEAR"].notna()].tolist()
+
+len(closed_hospitals)
+```
+
+```{python}
+# Create df of closed hospitals
+# MAY NEED TO CHANGE TO LIST
+df_pos_closed = df_pos.loc[df_pos["TRMNTN_YEAR"].notna()]
+df_pos_closed = df_pos_closed[["FAC_NAME", "ZIP_CD", "TRMNTN_YEAR"]]
+```
+
 2. 
+
+```{python}
+# Sort by hospital name
+df_pos_closed.sort_values(by="FAC_NAME", inplace=True)
+df_pos_closed.head(10)
+```
+
 3. 
     a.
+
+```{python}
+# Count number of active hospitals per year
+df_pos_active = df_pos.groupby(
+    "ZIP_CD").size().reset_index(name="active_2016")
+
+for col_index in range(-5, -2, 1):
+    col_name = df_pos.columns[col_index]
+    col = df_pos[col_name]
+    new_col_name = "active_" + str(col_index + 2022)
+    active = df_pos[col == 0].groupby("ZIP_CD").size().reset_index()
+    active.rename(columns={0: new_col_name}, inplace=True)
+    df_pos_active = pd.merge(
+        df_pos_active, active[["ZIP_CD", new_col_name]], on="ZIP_CD", how="left").fillna(0)
+```
+
+```{python}
+# Compare number of active hospitals with closures
+df_pos_active["diff_1718"] = df_pos_active["active_2017"] - \
+    df_pos_active["active_2018"]
+df_pos_active["diff_1819"] = df_pos_active["active_2018"] - \
+    df_pos_active["active_2019"]
+
+df_pos2017_closed = df_pos[df_pos["TRMNTN_YEAR"] == 2017].groupby(
+    "ZIP_CD").size().reset_index(name="count")
+df_pos2017_closed = df_pos2017_closed.merge(
+    df_pos_active[["ZIP_CD", "diff_1819"]], on="ZIP_CD", how="left")
+
+df_pos2018_closed = df_pos[df_pos["TRMNTN_YEAR"] == 2018].groupby(
+    "ZIP_CD").size().reset_index(name="count")
+df_pos2018_closed = df_pos2018_closed.merge(
+    df_pos_active[["ZIP_CD", "diff_1819"]], on="ZIP_CD", how="left")
+
+
+def drop_suspect_closures(df):
+
+
+```
+
+```{python}
+# Check if number of active hospitals decrased in zip code after closure
+df_closure_zip = df_pos.groupby(
+    ["ZIP_CD", "TRMNTN_YEAR"]).size().reset_index(name="count")
+df_closure_zip = df_closure_zip[df_closure_zip["count"] > 0]
+```
+
     b.
     c.
 
