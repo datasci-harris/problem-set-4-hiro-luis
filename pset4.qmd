@@ -58,6 +58,8 @@ We use (`*`) to indicate a problem that we think might be time consuming.
 import os
 import pandas as pd
 import altair as alt
+import geopandas as gpd
+import matplotlib.pyplot as plt
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -91,6 +93,7 @@ The variables we selected are;
 
 ```{python}
 # Set the absolute path of the data folder
+# base = (r"C:\Users\hkura\Documents\Uchicago\04 2024 Autumn\Python2\problem-set-4-hiro-luis\data")
 base = (r"C:\Users\LUIS\Documents\GitHub\problem-set-4-hiro-luis\data")
 path_data_2016 = os.path.join(base, "pos2016.csv")
 
@@ -112,9 +115,8 @@ df_pos2016_short = subset_short_term(df_pos2016)
 
     a.    
 ```{python}
-# Count the number of unique providers
-val_count_2016 = len(df_pos2016_short["PRVDR_NUM"].value_counts())
-print()
+# Count the number of observations
+print(len(df_pos2016_short))
 ```
 
     This subset for short-term hospitals in 2016 includes 7245 hospitals.
@@ -158,14 +160,15 @@ df_pos2017_short = subset_short_term(df_pos2017)
 df_pos2018_short = subset_short_term(df_pos2018)
 df_pos2019_short = subset_short_term(df_pos2019)
 
-# Count the number of unique providers, including 2016
-val_count = [val_count_2016, len(df_pos2017_short["PRVDR_NUM"].value_counts()), len(
-    df_pos2018_short["PRVDR_NUM"].value_counts()), len(df_pos2019_short["PRVDR_NUM"].value_counts())]
 
-num_short_term = pd.DataFrame([val_count])
-num_short_term.columns = list(range(2016, 2020, 1))
+# Summarize the number of observations for each subset
+df_summary_obs = pd.DataFrame(
+  {"year": list(range(2016, 2020, 1)), 
+  "observations" : [len(df_pos2016_short), len(df_pos2017_short), len(df_pos2018_short), len(df_pos2019_short)]
+  }
+)
 
-num_short_term
+df_summary_obs
 ```
 
   The number for q4 in 2017/2018/2019 is on similar level with 2016, which are unmatched with the cross-reference.
@@ -185,17 +188,36 @@ df_pos_short = pd.concat(
 alt.data_transformers.disable_max_rows()
 
 # Plot the number of observation for each subset's year
-chart_short = alt.Chart(df_pos_short).mark_line().encode(
-    alt.X("DATA_YEAR:N", title="Subset Year (Q4)", axis=alt.Axis(labelAngle=0)),
-    alt.Y("count()", title="Number of Observation",
-          scale=alt.Scale(domain=[7000, 8000]))
-).properties(width=250, height=250)
-chart_short
+chart_obs = alt.Chart(df_pos).mark_line().encode(
+    alt.X("DATA_YEAR:N", title = "Year (Q4)", axis = alt.Axis(labelAngle = 0)),
+    alt.Y("count()", title = "Number of Observation", scale = alt.Scale(domain = [7000,8000]))
+).properties(width = 250, height = 250)
+chart_obs
 ```
 
 4. 
     a.
+
+```{python}
+# Summarize the number of unique providers for each subset
+df_summary_unique = pd.DataFrame(
+  {"year": list(range(2016, 2020, 1)), 
+  "unique_hospitals" :  [len(df_pos2016_short["PRVDR_NUM"].value_counts()), len(df_pos2017_short["PRVDR_NUM"].value_counts()), len(df_pos2018_short["PRVDR_NUM"].value_counts()), len(df_pos2019_short["PRVDR_NUM"].value_counts())]
+  }
+)
+
+df_summary_unique
+
+# Plot the number of unique hospitals for each subset's year
+chart_unique = alt.Chart(df_summary_unique).mark_line().encode(
+    alt.X("year:N", title = "Year (Q4)", axis = alt.Axis(labelAngle = 0)),
+    alt.Y("unique_hospitals:Q", title = "Number of unique hospitals", scale = alt.Scale(domain = [7000,8000]))
+).properties(width = 250, height = 250)
+chart_unique
+```
+
     b.
+    The numbers of unique hospitals are the same as the numbers of observations for all years we examined. This suggests that this dataset is structured so that each row contains parameters/attributions of each hospital.
 
 ## Identify hospital closures in POS file (15 pts) (*)
 
@@ -317,9 +339,93 @@ df_closure_zip = df_closure_zip[df_closure_zip["count"] > 0]
 ## Download Census zip code shapefile (10 pt) 
 
 1. 
-    a.
+    a. The file types and the   types of information for each of those included in the data is below;
+
+      - .shp : feature geometrics
+
+      - .shx : positional index
+
+      - .dbf : attribute information
+
+      - .prj : description about the CRS
+
+      - .xml : metadata for the data
+      
     b. 
+
+```{python}
+# Define a function to get the file size
+def get_filesize(path):
+    size = os.path.getsize(path)
+    if size > (1024 ** 2):
+        size = size / (1024 ** 2)
+        result = f"{round(size,1)}MB"
+    elif size > 1024:
+        size = size / 1024
+        result = f"{round(size,1)}KB"
+    else:
+        result = f"{round(size,1)}bytes"
+    return result
+
+# Get the file sizes for each file
+shape_filetypes = ["shp", "shx", "dbf", "prj", "xml"]
+
+paths_shape = [os.path.join(base, "gz_2010_us_860_00_500k", f"gz_2010_us_860_00_500k.{x}") for x in shape_filetypes]
+
+shape_filesizes = pd.DataFrame(
+  {"file": [f"gz_2010_us_860_00_500k.{x}" for x in shape_filetypes],
+  "size":[get_filesize(x) for x in paths_shape]
+  }
+)
+
+print(shape_filesizes)
+```
+
 2. 
+
+```{python}
+# Load the shp file
+path_shp = os.path.join(base, r"gz_2010_us_860_00_500k\gz_2010_us_860_00_500k.shp")
+df_shp = gpd.read_file(path_shp)
+```
+
+```{python}
+df_shp["ZCTA5"] = df_shp["ZCTA5"].astype(int)
+df_shp.head
+```
+
+From the metadata in the XML file, we can restrict the zip code by filtering the column "ZCTA5". Now given that Texas zip codes start from 75-79, we can operate the restriction as below;
+
+```{python}
+# Restrict to Texas ZIP codes
+df_shp_tx = df_shp[(df_shp["ZCTA5"].astype(int) >= 75000) & (df_shp["ZCTA5"].astype(int) < 80000)]
+
+# Extract Texas ZIP codes
+zip_tx = df_shp_tx["ZCTA5"].value_counts().index.astype(int).to_list()
+
+# Summarize the number of hospitals per zip code on 2016 subset of POS data
+df_pos2016_short_tx = df_pos2016_short[df_pos2016_short["ZIP_CD"].isin(zip_tx)]
+summary_pos2016_short_tx = df_pos2016_short_tx.groupby("ZIP_CD").size().reset_index()
+summary_pos2016_short_tx.columns = ["ZIP code", "Number of hospitals"]
+summary_pos2016_short_tx["ZIP code"] =summary_pos2016_short_tx["ZIP code"].astype(int)
+
+summary_pos2016_short_tx
+```
+
+```{python}
+# Merge the dataframes
+df_shp_tx_merge = df_shp_tx.merge(
+    summary_pos2016_short_tx,
+    left_on = "ZCTA5",
+    right_on = "ZIP code",
+    how = "outer"
+)
+
+# Plot the number of hospital in TX on the map
+df_shp_tx_merge.plot(column = "Number of hospitals", linewidth = 0.5, edgecolor = "0.8", legend = "True")
+plt.axis("off")
+plt.show
+```
 
 ## Calculate zip code’s distance to the nearest hospital (20 pts) (*)
 
@@ -337,6 +443,11 @@ df_closure_zip = df_closure_zip[df_closure_zip["count"] > 0]
 ## Effects of closures on access in Texas (15 pts)
 
 1. 
+
+```{python}
+
+```
+
 2. 
 3. 
 4. 
