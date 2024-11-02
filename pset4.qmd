@@ -309,6 +309,7 @@ for col_index in range(-5, -2, 1):
 ```
 
 ```{python}
+#| eval: False
 # Compare number of active hospitals with closures
 df_pos_active["diff_1718"] = df_pos_active["active_2017"] - \
     df_pos_active["active_2018"]
@@ -332,6 +333,7 @@ def drop_suspect_closures(df):
 ```
 
 ```{python}
+#| eval: False
 # Check if number of active hospitals decrased in zip code after closure
 df_closure_zip = df_pos.groupby(
     ["ZIP_CD", "TRMNTN_YEAR"]).size().reset_index(name="count")
@@ -436,7 +438,25 @@ plt.show
 ## Calculate zip code’s distance to the nearest hospital (20 pts) (*)
 
 1. 
+
+```{python}
+# Create a centroid column for all ZIP codes
+zips_all_centroids = df_shp.centroid
+
+zips_all_centroids.head()
+
+```
+
+DIMENTIONS
+
+WHAT DO EACH OF THE COLUMNS MEAN?
+
 2. 
+
+```{python}
+
+```
+
 3. 
 4. 
     a.
@@ -502,8 +522,10 @@ There are 344 directly affected zip codes in Texas.
 direct_zips = dissolved[dissolved["DIRECT"] == 1]
 
 # Create a 10-mile buffer around direct_zips
+buf_degree = 10 / 68
+
 buffer_10 = direct_zips.copy()
-buffer_10["geometry"] = buffer_10.geometry.buffer(10)
+buffer_10["geometry"] = buffer_10.geometry.buffer(buf_degree)
 
 # Spatial join with the overall Texas zip code shapefile
 indirect_zips = gpd.sjoin(df_shp_tx, buffer_10, how = "inner", predicate = "intersects")
