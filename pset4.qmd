@@ -123,6 +123,11 @@ print(len(df_pos2016_short))
 
     DOES THIS NUMBER MAKE SENSE?
 
+```{python}
+# Count the number of observations
+print(len(df_pos2016))
+```
+
     b. We couldn't find references which includes the exact number of short-term hospitals at the end of 2016, but the 2016 CMS statistics specifies the number as 3,436 for the Dec 31, 2015, which is the most recent data available in the search result(https://www.cms.gov/Research-Statistics-Data-and-Systems/Statistics-Trends-and-Reports/CMS-Statistics-Reference-Booklet/Downloads/2016_CMS_Stats.pdf).
 
     Considering the number 3,436 at the end of 2015, 7245 is drastically larger, even considering the change in one year.
@@ -472,8 +477,12 @@ df_shp_tx_merge = df_shp_tx_merge.merge(
 
 df_shp_tx_merge["DIRECT"] =df_shp_tx_merge["Number of closures"].apply(pd.isna)
 
+# Dissolve the GeoDataFrame by the parameter for directly affected ZIP codes
+dissolved = df_shp_tx_merge[["ZCTA5","geometry", "DIRECT"]].dissolve(by = "DIRECT", aggfunc = "sum").reset_index()
+dissolved
+
 # Plot a choropleth of directly affected ZIP codes
-df_shp_tx_merge.plot(column = "DIRECT", linewidth = 0.5, edgecolor = "0.8", legend = True, figsize = (10, 10))
+dissolved.plot(column = "DIRECT", linewidth = 1, edgecolor = "0.8", legend = True, figsize = (10, 10))
 plt.axis("off")
 plt.title("Directly Affected ZIP codes in Texas")
 plt.show
@@ -487,6 +496,37 @@ print(len(summary_direct))
 There are 344 directly affected zip codes in Texas.
 
 3. 
+
+```{python}
+# Create a GeoDataFrame of the directly affected zip codes
+direct_zips = dissolved[dissolved["DIRECT"] == 1]
+
+# Create a 10-mile buffer around direct_zips
+buffer_10 = direct_zips.copy()
+buffer_10["geometry"] = buffer_10.geometry.buffer(10)
+
+# Spatial join with the overall Texas zip code shapefile
+indirect_zips = gpd.sjoin(df_shp_tx, buffer_10, how = "inner", predicate = "intersects")
+
+print(len(indirect_zips))
+
+```
+
+There are 1935 indirectly affected zipcodes in Texas.
+
 4. 
 
+```{python}
+# BUFFER IS WIREDLY BROAD
+fig, ax = plt.subplots()
+direct_zips.plot(ax = ax, color = "red", alpha = 0.7, label = "Direct").set_axis_off()
+buffer_10.plot(ax = ax, color = "purple", alpha = 0.5, label = "10-mile").set_axis_off()
+indirect_zips.plot(ax = ax, color = "blue", alpha = 0.3, label = "Indirect")
+
+plt.show()
+```
+
 ## Reflecting on the exercise (10 pts) 
+(Partner 1: Hiro) 
+
+(Partner 2: Luis)
