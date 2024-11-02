@@ -417,6 +417,10 @@ summary_pos2016_short_tx = df_pos2016_short_tx.groupby("ZIP_CD").size().reset_in
 summary_pos2016_short_tx.columns = ["ZIP_CD", "HOSPITAL_NUM"]
 summary_pos2016_short_tx["ZIP_CD"] =summary_pos2016_short_tx["ZIP_CD"].astype(int)
 
+print(summary_pos2016_short_tx)
+```
+
+```{python}
 # Merge the dataframes
 df_shp_tx_merge = df_shp_tx.merge(
     summary_pos2016_short_tx,
