@@ -93,8 +93,8 @@ The variables we selected are;
 
 ```{python}
 # Set the absolute path of the data folder
-# base = (r"C:\Users\hkura\Documents\Uchicago\04 2024 Autumn\Python2\problem-set-4-hiro-luis\data")
-base = (r"C:\Users\LUIS\Documents\GitHub\problem-set-4-hiro-luis\data")
+base = (r"C:\Users\hkura\Documents\Uchicago\04 2024 Autumn\Python2\problem-set-4-hiro-luis\data")
+# base = (r"C:\Users\LUIS\Documents\GitHub\problem-set-4-hiro-luis\data")
 path_data_2016 = os.path.join(base, "pos2016.csv")
 
 # Load 2016 dataset
@@ -181,14 +181,14 @@ df_pos2018_short["DATA_YEAR"] = 2018
 df_pos2019_short["DATA_YEAR"] = 2019
 
 # Concaterate the subsets
-df_pos_short = pd.concat(
+df_pos_append = pd.concat(
     [df_pos2016_short, df_pos2017_short, df_pos2018_short, df_pos2019_short])
 
 # Turn off the row number limit
 alt.data_transformers.disable_max_rows()
 
 # Plot the number of observation for each subset's year
-chart_obs = alt.Chart(df_pos).mark_line().encode(
+chart_obs = alt.Chart(df_pos_append).mark_line().encode(
     alt.X("DATA_YEAR:N", title = "Year (Q4)", axis = alt.Axis(labelAngle = 0)),
     alt.Y("count()", title = "Number of Observation", scale = alt.Scale(domain = [7000,8000]))
 ).properties(width = 250, height = 250)
@@ -390,40 +390,41 @@ df_shp = gpd.read_file(path_shp)
 ```
 
 ```{python}
-df_shp["ZCTA5"] = df_shp["ZCTA5"].astype(int)
+# Specify the variable for ZIP code in the dataset
 df_shp.head
+df_shp["ZCTA5"] = df_shp["ZCTA5"].astype(int)
 ```
 
 From the metadata in the XML file, we can restrict the zip code by filtering the column "ZCTA5". Now given that Texas zip codes start from 75-79, we can operate the restriction as below;
 
 ```{python}
-# Restrict to Texas ZIP codes
-df_shp_tx = df_shp[(df_shp["ZCTA5"].astype(int) >= 75000) & (df_shp["ZCTA5"].astype(int) < 80000)]
+# Restrict dataset to Texas ZIP codes
+df_shp_tx = df_shp[(df_shp["ZCTA5"] >= 75000) & (df_shp["ZCTA5"] < 80000)]
 
-# Extract Texas ZIP codes
+# Extract a list of Texas ZIP codes
 zip_tx = df_shp_tx["ZCTA5"].value_counts().index.astype(int).to_list()
 
-# Summarize the number of hospitals per zip code on 2016 subset of POS data
+# Summarize the number of hospitals for each zip code on 2016 subset of POS data
 df_pos2016_short_tx = df_pos2016_short[df_pos2016_short["ZIP_CD"].isin(zip_tx)]
 summary_pos2016_short_tx = df_pos2016_short_tx.groupby("ZIP_CD").size().reset_index()
-summary_pos2016_short_tx.columns = ["ZIP code", "Number of hospitals"]
-summary_pos2016_short_tx["ZIP code"] =summary_pos2016_short_tx["ZIP code"].astype(int)
+summary_pos2016_short_tx.columns = ["ZIP_CD", "HOSPITAL_NUM"]
+summary_pos2016_short_tx["ZIP_CD"] =summary_pos2016_short_tx["ZIP_CD"].astype(int)
 
-summary_pos2016_short_tx
-```
-
-```{python}
 # Merge the dataframes
 df_shp_tx_merge = df_shp_tx.merge(
     summary_pos2016_short_tx,
     left_on = "ZCTA5",
-    right_on = "ZIP code",
+    right_on = "ZIP_CD",
     how = "outer"
 )
 
+# Replace NAs in the number of hospitals with the value 0
+df_shp_tx_merge["HOSPITAL_NUM"] = df_shp_tx_merge["HOSPITAL_NUM"].fillna(0).astype(int).astype("category")
+
 # Plot the number of hospital in TX on the map
-df_shp_tx_merge.plot(column = "Number of hospitals", linewidth = 0.5, edgecolor = "0.8", legend = "True")
+df_shp_tx_merge.plot(column = "HOSPITAL_NUM", linewidth = 0.5, edgecolor = "0.8", legend = True, figsize = (10, 10))
 plt.axis("off")
+plt.title("Number of Hospitals by ZIP code in Texas")
 plt.show
 ```
 
@@ -445,10 +446,46 @@ plt.show
 1. 
 
 ```{python}
+# Subset the appended dataset
+df_pos_append["ZIP_CD"] = df_pos_append["ZIP_CD"].astype(int)
+df_pos_append_tx = df_pos_append[(df_pos_append["ZIP_CD"] >= 75000) & (df_pos_append["ZIP_CD"] < 80000)]
 
+# Summarize the number of directly affected zip codes
+summary_direct = df_pos_append_tx[df_pos_append_tx["PGM_TRMNTN_CD"] != 0].groupby(["ZIP_CD", "FAC_NAME"]).size().reset_index()
+
+summary_direct = summary_direct.groupby("ZIP_CD").size().reset_index()
+summary_direct.columns = ["ZIP code", "Number of closures"]
+
+print(summary_direct)
 ```
 
 2. 
+
+```{python}
+# Merge the summary to the GeoDataFrame
+df_shp_tx_merge = df_shp_tx_merge.merge(
+    summary_direct,
+    left_on = "ZCTA5",
+    right_on = "ZIP code",
+    how = "outer"
+)
+
+df_shp_tx_merge["DIRECT"] =df_shp_tx_merge["Number of closures"].apply(pd.isna)
+
+# Plot a choropleth of directly affected ZIP codes
+df_shp_tx_merge.plot(column = "DIRECT", linewidth = 0.5, edgecolor = "0.8", legend = True, figsize = (10, 10))
+plt.axis("off")
+plt.title("Directly Affected ZIP codes in Texas")
+plt.show
+```
+
+```{python}
+# Count the number of directly affected ZIP codes
+print(len(summary_direct))
+```
+
+There are 344 directly affected zip codes in Texas.
+
 3. 
 4. 
 
