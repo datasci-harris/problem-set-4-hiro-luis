@@ -60,6 +60,7 @@ import pandas as pd
 import altair as alt
 import geopandas as gpd
 import matplotlib.pyplot as plt
+import numpy as np
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -230,32 +231,35 @@ chart_unique
 
 ```{python}
 # Make termination status per year a separate column
-df_pos2016.rename(
+df_pos2016_short.rename(
     columns={"PGM_TRMNTN_CD": "PGM_TRMNTN_CD_2016"}, inplace=True)
-df_pos2017.rename(
+df_pos2017_short.rename(
     columns={"PGM_TRMNTN_CD": "PGM_TRMNTN_CD_2017"}, inplace=True)
-df_pos2018.rename(
+df_pos2018_short.rename(
     columns={"PGM_TRMNTN_CD": "PGM_TRMNTN_CD_2018"}, inplace=True)
-df_pos2019.rename(
+df_pos2019_short.rename(
     columns={"PGM_TRMNTN_CD": "PGM_TRMNTN_CD_2019"}, inplace=True)
+```
 
-# Merge dfs
-df_list = [df_pos2017, df_pos2018, df_pos2019]
-df_pos = df_pos2016
+```{python}
+# Create new merged df
+df_list = [df_pos2017_short, df_pos2018_short, df_pos2019_short]
+df_pos_termination = df_pos2016_short
 
 for df in df_list:
-    last_col = df.columns[-1]
-    df_pos = pd.merge(
-        df_pos, df[["PRVDR_NUM", last_col]], on="PRVDR_NUM", how="left")
+    col_name = df.columns[-2]
+    df_pos_termination = df_pos_termination.merge(
+        df[["PRVDR_NUM", col_name]], on="PRVDR_NUM", how="outer")
 
-# Subset active hospitals in 2016
-df_pos = df_pos[df_pos["PGM_TRMNTN_CD_2016"] == 0]
+df_pos_termination = df_pos_termination.drop(columns=["DATA_YEAR"])
 ```
 
 ```{python}
 # Add suspected termination year
 def add_termination_year(row):
-    if row["PGM_TRMNTN_CD_2017"] != 0:
+    if row["PGM_TRMNTN_CD_2016"] != 0:
+        return None
+    elif row["PGM_TRMNTN_CD_2017"] != 0:
         return 2017
     elif row["PGM_TRMNTN_CD_2018"] != 0:
         return 2018
@@ -264,13 +268,15 @@ def add_termination_year(row):
     return None
 
 
-df_pos["TRMNTN_YEAR"] = df_pos.apply(add_termination_year, axis=1)
+df_pos_termination["TRMNTN_YEAR"] = df_pos_termination.apply(
+    add_termination_year, axis=1)
 ```
 
 ```{python}
-# Create list of closed hospitals
+# Create list of closed hospitals that were active in 2016
+df_pos2016_active = df_pos_termination[df_pos_termination["PGM_TRMNTN_CD_2016"] == 0]
 closed_hospitals = []
-closed_hospitals = df_pos["FAC_NAME"][df_pos["TRMNTN_YEAR"].notna()].tolist()
+closed_hospitals = df_pos2016_active["FAC_NAME"][df_pos2016_active["TRMNTN_YEAR"] > 2016].tolist()
 
 len(closed_hospitals)
 ```
@@ -278,7 +284,7 @@ len(closed_hospitals)
 ```{python}
 # Create df of closed hospitals
 # MAY NEED TO CHANGE TO LIST
-df_pos_closed = df_pos.loc[df_pos["TRMNTN_YEAR"].notna()]
+df_pos_closed = df_pos_termination.loc[df_pos_termination["TRMNTN_YEAR"].notna()]
 df_pos_closed = df_pos_closed[["FAC_NAME", "ZIP_CD", "TRMNTN_YEAR"]]
 ```
 
@@ -295,17 +301,18 @@ df_pos_closed.head(10)
 
 ```{python}
 # Count number of active hospitals per year
-df_pos_active = df_pos.groupby(
-    "ZIP_CD").size().reset_index(name="active_2016")
+df_pos_active = df_pos_termination[df_pos_termination["PGM_TRMNTN_CD_2016"] == 0].groupby(
+    "ZIP_CD").size().reset_index(name="active_2017")
 
-for col_index in range(-5, -2, 1):
-    col_name = df_pos.columns[col_index]
-    col = df_pos[col_name]
+for col_index in range(-4, -2, 1):
+    col_name = df_pos_termination.columns[col_index]
+    col = df_pos_termination[col_name]
     new_col_name = "active_" + str(col_index + 2022)
-    active = df_pos[col == 0].groupby("ZIP_CD").size().reset_index()
+    active = df_pos_termination[col == 0].groupby(
+        "ZIP_CD").size().reset_index()
     active.rename(columns={0: new_col_name}, inplace=True)
-    df_pos_active = pd.merge(
-        df_pos_active, active[["ZIP_CD", new_col_name]], on="ZIP_CD", how="left").fillna(0)
+    df_pos_active = df_pos_active.merge(
+        active[["ZIP_CD", new_col_name]], on="ZIP_CD", how="outer").fillna(0)
 ```
 
 ```{python}
@@ -315,32 +322,47 @@ df_pos_active["diff_1718"] = df_pos_active["active_2017"] - \
     df_pos_active["active_2018"]
 df_pos_active["diff_1819"] = df_pos_active["active_2018"] - \
     df_pos_active["active_2019"]
+```
 
-df_pos2017_closed = df_pos[df_pos["TRMNTN_YEAR"] == 2017].groupby(
-    "ZIP_CD").size().reset_index(name="count")
-df_pos2017_closed = df_pos2017_closed.merge(
-    df_pos_active[["ZIP_CD", "diff_1819"]], on="ZIP_CD", how="left")
+There are three (3) suspect hospital closures that fit the definition of potentially being a merger/acquisition. Two (2) were in 2017 and one (1) was in 2018.
 
-df_pos2018_closed = df_pos[df_pos["TRMNTN_YEAR"] == 2018].groupby(
-    "ZIP_CD").size().reset_index(name="count")
-df_pos2018_closed = df_pos2018_closed.merge(
-    df_pos_active[["ZIP_CD", "diff_1819"]], on="ZIP_CD", how="left")
+```{python}
+# Fix termination dates to identify suspect hospital closures
+def revise_termination_year(row):
+    if row["PGM_TRMNTN_CD_2016"] != 0:
+        if ((row["PGM_TRMNTN_CD_2017"] == 0) | (row["PGM_TRMNTN_CD_2018"] == 0) | (row["PGM_TRMNTN_CD_2019"] == 0)):
+            return 2016
+    elif row["PGM_TRMNTN_CD_2017"] != 0:
+        return 2017
+    elif row["PGM_TRMNTN_CD_2018"] != 0:
+        return 2018
+    elif row["PGM_TRMNTN_CD_2019"] != 0:
+        return 2019
+    return None
 
+df_pos_termination["TRMNTN_YEAR"] = df_pos_termination.apply(
+    revise_termination_year, axis=1)
 
-def drop_suspect_closures(df):
-
-
+# Remove suspect hospital closures
+df_pos_termination_revised = df_pos_termination[df_pos_termination["TRMNTN_YEAR"] != 2016]
 ```
 
 ```{python}
-#| eval: False
-# Check if number of active hospitals decrased in zip code after closure
-df_closure_zip = df_pos.groupby(
-    ["ZIP_CD", "TRMNTN_YEAR"]).size().reset_index(name="count")
-df_closure_zip = df_closure_zip[df_closure_zip["count"] > 0]
+        if np.isnan(row["PGM_TRMNTN_CD_2016"]):
+            return None
 ```
 
     b.
+
+```{python}
+# Create revised list of closed hospitals
+df_pos2016_active_revised = df_pos_termination_revised[df_pos_termination_revised["PGM_TRMNTN_CD_2016"] == 0]
+closed_hospitals = []
+closed_hospitals = df_pos2016_active_revised["FAC_NAME"][df_pos2016_active_revised["TRMNTN_YEAR"] > 2016].tolist()
+
+len(closed_hospitals)
+```
+
     c.
 
 ## Download Census zip code shapefile (10 pt) 
