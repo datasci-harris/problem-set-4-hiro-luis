@@ -61,6 +61,8 @@ import altair as alt
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
+import time
+import datetime as datetime
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -122,7 +124,7 @@ print(len(df_pos2016_short))
 
     This subset for short-term hospitals in 2016 includes 7245 hospitals.
 
-    DOES THIS NUMBER MAKE SENSE?
+    This number seems not making sense, as it occupies a half of number of whole hospitals though it is just one subtype. 
 
 ```{python}
 # Count the number of observations
@@ -276,6 +278,7 @@ df_pos_termination["TRMNTN_YEAR"] = df_pos_termination.apply(
 ```{python}
 # Create list of closed hospitals that were active in 2016
 df_pos_active2016 = df_pos_termination[df_pos_termination["PGM_TRMNTN_CD_2016"] == 0]
+
 closed_hospitals = []
 closed_hospitals = df_pos_active2016["FAC_NAME"][df_pos_termination["TRMNTN_YEAR"] > 2016].tolist()
 
@@ -408,6 +411,7 @@ df_pos_termination_revised = df_pos_termination[df_pos_termination["TRMNTN_YEAR"
 ```
 
 ```{python}
+#|eval: False
         if np.isnan(row["PGM_TRMNTN_CD_2016"]):
             return None
 ```
@@ -499,6 +503,10 @@ summary_pos2016_short_tx = df_pos2016_short_tx.groupby("ZIP_CD").size().reset_in
 summary_pos2016_short_tx.columns = ["ZIP_CD", "HOSPITAL_NUM"]
 summary_pos2016_short_tx["ZIP_CD"] =summary_pos2016_short_tx["ZIP_CD"].astype(int)
 
+print(summary_pos2016_short_tx)
+```
+
+```{python}
 # Merge the dataframes
 df_shp_tx_merge = df_shp_tx.merge(
     summary_pos2016_short_tx,
@@ -782,14 +790,15 @@ There are 344 directly affected zip codes in Texas.
 direct_zips = dissolved[dissolved["DIRECT"] == 1]
 
 # Create a 10-mile buffer around direct_zips
+buf_degree = 10 / 69
+
 buffer_10 = direct_zips.copy()
-buffer_10["geometry"] = buffer_10.geometry.buffer(10)
+buffer_10["geometry"] = buffer_10.geometry.buffer(buf_degree)
 
 # Spatial join with the overall Texas zip code shapefile
 indirect_zips = gpd.sjoin(df_shp_tx, buffer_10, how = "inner", predicate = "intersects")
 
 print(len(indirect_zips))
-
 ```
 
 There are 1935 indirectly affected zipcodes in Texas.
@@ -797,7 +806,6 @@ There are 1935 indirectly affected zipcodes in Texas.
 4. 
 
 ```{python}
-# BUFFER IS WIREDLY BROAD
 fig, ax = plt.subplots()
 direct_zips.plot(ax = ax, color = "red", alpha = 0.7, label = "Direct").set_axis_off()
 buffer_10.plot(ax = ax, color = "purple", alpha = 0.5, label = "10-mile").set_axis_off()
