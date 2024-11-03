@@ -61,6 +61,8 @@ import altair as alt
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
+import time
+import datetime as datetime
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -122,7 +124,7 @@ print(len(df_pos2016_short))
 
     This subset for short-term hospitals in 2016 includes 7245 hospitals.
 
-    DOES THIS NUMBER MAKE SENSE?
+    This number seems not making sense, as it occupies a half of number of whole hospitals though it is just one subtype. 
 
 ```{python}
 # Count the number of observations
@@ -274,7 +276,7 @@ df_pos_termination["TRMNTN_YEAR"] = df_pos_termination.apply(
 
 ```{python}
 # Create list of closed hospitals that were active in 2016
-df_pos2016_active = df_pos_termination[df_pos_termination["PGM_TRMNTN_CD_2016"] == 0]
+df_pos2016_active = df_pos_termination.copy()[df_pos_termination["PGM_TRMNTN_CD_2016"] == 0]
 closed_hospitals = []
 closed_hospitals = df_pos2016_active["FAC_NAME"][df_pos2016_active["TRMNTN_YEAR"] > 2016].tolist()
 
@@ -316,7 +318,6 @@ for col_index in range(-4, -2, 1):
 ```
 
 ```{python}
-#| eval: False
 # Compare number of active hospitals with closures
 df_pos_active["diff_1718"] = df_pos_active["active_2017"] - \
     df_pos_active["active_2018"]
@@ -348,6 +349,7 @@ df_pos_termination_revised = df_pos_termination[df_pos_termination["TRMNTN_YEAR"
 ```
 
 ```{python}
+#|eval: False
         if np.isnan(row["PGM_TRMNTN_CD_2016"]):
             return None
 ```
@@ -464,34 +466,17 @@ plt.show
 ## Calculate zip code’s distance to the nearest hospital (20 pts) (*)
 
 1. 
-
-```{python}
-# Create a centroid column for all ZIP codes
-zips_all_centroids = df_shp.centroid
-
-zips_all_centroids.head()
-
-```
-
-DIMENTIONS
-
-WHAT DO EACH OF THE COLUMNS MEAN?
-
 2. 
-
-```{python}
-
-```
-
 3. 
 4. 
     a.
     b.
+    c. 
 5. 
-    a.
-    b.
+    a. 
+    b. 
     c.
-    
+
 ## Effects of closures on access in Texas (15 pts)
 
 1. 
@@ -548,7 +533,7 @@ There are 344 directly affected zip codes in Texas.
 direct_zips = dissolved[dissolved["DIRECT"] == 1]
 
 # Create a 10-mile buffer around direct_zips
-buf_degree = 10 / 68
+buf_degree = 10 / 69
 
 buffer_10 = direct_zips.copy()
 buffer_10["geometry"] = buffer_10.geometry.buffer(buf_degree)
@@ -557,7 +542,6 @@ buffer_10["geometry"] = buffer_10.geometry.buffer(buf_degree)
 indirect_zips = gpd.sjoin(df_shp_tx, buffer_10, how = "inner", predicate = "intersects")
 
 print(len(indirect_zips))
-
 ```
 
 There are 1935 indirectly affected zipcodes in Texas.
@@ -565,7 +549,6 @@ There are 1935 indirectly affected zipcodes in Texas.
 4. 
 
 ```{python}
-# BUFFER IS WIREDLY BROAD
 fig, ax = plt.subplots()
 direct_zips.plot(ax = ax, color = "red", alpha = 0.7, label = "Direct").set_axis_off()
 buffer_10.plot(ax = ax, color = "purple", alpha = 0.5, label = "10-mile").set_axis_off()
