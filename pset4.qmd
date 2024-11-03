@@ -169,9 +169,9 @@ df_pos2019_short = subset_short_term(df_pos2019)
 
 # Summarize the number of observations for each subset
 df_summary_obs = pd.DataFrame(
-  {"year": list(range(2016, 2020, 1)), 
-  "observations" : [len(df_pos2016_short), len(df_pos2017_short), len(df_pos2018_short), len(df_pos2019_short)]
-  }
+    {"year": list(range(2016, 2020, 1)),
+     "observations": [len(df_pos2016_short), len(df_pos2017_short), len(df_pos2018_short), len(df_pos2019_short)]
+     }
 )
 
 df_summary_obs
@@ -195,9 +195,10 @@ alt.data_transformers.disable_max_rows()
 
 # Plot the number of observation for each subset's year
 chart_obs = alt.Chart(df_pos_append).mark_line().encode(
-    alt.X("DATA_YEAR:N", title = "Year (Q4)", axis = alt.Axis(labelAngle = 0)),
-    alt.Y("count()", title = "Number of Observation", scale = alt.Scale(domain = [7000,8000]))
-).properties(width = 250, height = 250)
+    alt.X("DATA_YEAR:N", title="Year (Q4)", axis=alt.Axis(labelAngle=0)),
+    alt.Y("count()", title="Number of Observation",
+          scale=alt.Scale(domain=[7000, 8000]))
+).properties(width=250, height=250)
 chart_obs
 ```
 
@@ -207,18 +208,19 @@ chart_obs
 ```{python}
 # Summarize the number of unique providers for each subset
 df_summary_unique = pd.DataFrame(
-  {"year": list(range(2016, 2020, 1)), 
-  "unique_hospitals" :  [len(df_pos2016_short["PRVDR_NUM"].value_counts()), len(df_pos2017_short["PRVDR_NUM"].value_counts()), len(df_pos2018_short["PRVDR_NUM"].value_counts()), len(df_pos2019_short["PRVDR_NUM"].value_counts())]
-  }
+    {"year": list(range(2016, 2020, 1)),
+     "unique_hospitals":  [len(df_pos2016_short["PRVDR_NUM"].value_counts()), len(df_pos2017_short["PRVDR_NUM"].value_counts()), len(df_pos2018_short["PRVDR_NUM"].value_counts()), len(df_pos2019_short["PRVDR_NUM"].value_counts())]
+     }
 )
 
 df_summary_unique
 
 # Plot the number of unique hospitals for each subset's year
 chart_unique = alt.Chart(df_summary_unique).mark_line().encode(
-    alt.X("year:N", title = "Year (Q4)", axis = alt.Axis(labelAngle = 0)),
-    alt.Y("unique_hospitals:Q", title = "Number of unique hospitals", scale = alt.Scale(domain = [7000,8000]))
-).properties(width = 250, height = 250)
+    alt.X("year:N", title="Year (Q4)", axis=alt.Axis(labelAngle=0)),
+    alt.Y("unique_hospitals:Q", title="Number of unique hospitals",
+          scale=alt.Scale(domain=[7000, 8000]))
+).properties(width=250, height=250)
 chart_unique
 ```
 
@@ -277,7 +279,8 @@ df_pos_termination["TRMNTN_YEAR"] = df_pos_termination.apply(
 # Create list of closed hospitals that were active in 2016
 df_pos_active2016 = df_pos_termination[df_pos_termination["PGM_TRMNTN_CD_2016"] == 0]
 closed_hospitals = []
-closed_hospitals = df_pos_active2016["FAC_NAME"][df_pos_termination["TRMNTN_YEAR"] > 2016].tolist()
+closed_hospitals = df_pos_active2016["FAC_NAME"][df_pos_termination["TRMNTN_YEAR"] > 2016].tolist(
+)
 
 len(closed_hospitals)
 ```
@@ -285,10 +288,10 @@ len(closed_hospitals)
 174 hospitals
 
 ```{python}
-# Create df of closed hospitals
-# MAY NEED TO CHANGE TO LIST
+# Create list of closed hospital
 df_pos_closed = df_pos_active2016.loc[df_pos_active2016["TRMNTN_YEAR"].notna()]
-df_pos_closed = df_pos_closed[["FAC_NAME", "ZIP_CD", "TRMNTN_YEAR"]]
+df_pos_closed = df_pos_closed[["PRVDR_NUM",
+                               "FAC_NAME", "ZIP_CD", "TRMNTN_YEAR"]]
 ```
 
 2. 
@@ -303,127 +306,87 @@ df_pos_closed.head(10)
     a.
 
 ```{python}
-# Count number of active hospitals per year
-df_pos_active2016 = df_pos_termination[df_pos_termination["PGM_TRMNTN_CD_2016"] == 0][["PRVDR_NUM", "FAC_NAME", "ZIP_CD"]]
+# Revert column names
+df_pos2016_short.rename(
+    columns={"PGM_TRMNTN_CD_2016": "PGM_TRMNTN_CD"}, inplace=True)
+df_pos2017_short.rename(
+    columns={"PGM_TRMNTN_CD_2017": "PGM_TRMNTN_CD"}, inplace=True)
+df_pos2018_short.rename(
+    columns={"PGM_TRMNTN_CD_2018": "PGM_TRMNTN_CD"}, inplace=True)
+df_pos2019_short.rename(
+    columns={"PGM_TRMNTN_CD_2019": "PGM_TRMNTN_CD"}, inplace=True)
+```
+
+```{python}
+# Create dfs active and closed hospitals
+df_active2016 = df_pos2016_short[df_pos2016_short["PGM_TRMNTN_CD"] == 0][[
+    "PRVDR_NUM", "FAC_NAME", "ZIP_CD"]]
 
 df_suspect_closures = pd.DataFrame()
-status_per_year = ["PGM_TRMNTN_CD_2017", "PGM_TRMNTN_CD_2018", "PGM_TRMNTN_CD_2019"]
+df_active_total = df_active2016
 
-for year, status in zip([2017, 2018, 2019], status_per_year):
-    active = df_pos_termination[df_pos_termination[status] == 0]["PRVDR_NUM"]
-    closures = df_pos_active2016[~df_pos_active2016["PRVDR_NUM"].isin(active)]
+for year, df_year in zip([2017, 2018, 2019], [df_pos2017_short, df_pos2018_short, df_pos2019_short]):
+    active = df_year[df_year["PGM_TRMNTN_CD"] == 0]["PRVDR_NUM"]
+    closures = df_active_total[~df_active_total["PRVDR_NUM"].isin(active)]
     closures["TRMNTN_YEAR"] = year
 
-    suspect_closures = pd.concat([df_suspect_closures, closures])
+    df_suspect_closures = pd.concat([df_suspect_closures, closures])
 
-    df_pos_active2016 = df_pos_active2016[df_pos_active2016["PRVDR_NUM"].isin(active)]
+    df_active_total = df_active_total[df_active_total["PRVDR_NUM"].isin(
+        active)]
+
+df_closed = df_suspect_closures.drop_duplicates(subset=["PRVDR_NUM"])
 ```
 
 ```{python}
-# Count number of active hospitals per year
-active_counts = df_pos_termination.groupby("ZIP_CD").agg(
-    active_2016=("PGM_TRMNTN_CD_2016", lambda x: (x == 0).sum()),
-    active_2017=("PGM_TRMNTN_CD_2017", lambda x: (x == 0).sum()),
-    active_2018=("PGM_TRMNTN_CD_2018", lambda x: (x == 0).sum()),
-    active_2019=("PGM_TRMNTN_CD_2019", lambda x: (x == 0).sum())
-).reset_index()
+# Create new df of potential mergers
+df_by_year = {2016: df_pos2016_short, 2017: df_pos2017_short,
+              2018: df_pos2018_short, 2019: df_pos2019_short}
+
+potential_mergers = []
+
+for _, row in df_closed.iterrows():
+    zip_code = row["ZIP_CD"]
+    closure_year = row["TRMNTN_YEAR"]
+
+    if closure_year > 2016 and closure_year <= 2019:
+        df_prev_year = df_by_year[closure_year - 1]
+        df_current_year = df_by_year[closure_year]
+
+        active_prev_year = len(df_prev_year[(df_prev_year["ZIP_CD"] == zip_code) & (
+            df_prev_year["PGM_TRMNTN_CD"] == 0)])
+
+        active_current_year = len(df_current_year[(
+            df_current_year["ZIP_CD"] == zip_code) & (df_current_year["PGM_TRMNTN_CD"] == 0)])
+
+        if active_current_year >= active_prev_year:
+            potential_mergers.append(row)
+
+df_potential_mergers = pd.DataFrame(potential_mergers)
+len(df_potential_mergers)
 ```
 
-```{python}
-a
-```
-
-```{python}
-# SKIP
-# Count number of active hospitals per year
-df_pos_active = df_pos_termination[df_pos_termination["PGM_TRMNTN_CD_2016"] == 0].groupby(
-    "ZIP_CD").size().reset_index(name="active_2017")
-
-for col_index in range(-4, -2, 1):
-    col_name = df_pos_termination.columns[col_index]
-    col = df_pos_termination[col_name]
-    new_col_name = "active_" + str(col_index + 2022)
-    active = df_pos_termination[col == 0].groupby(
-        "ZIP_CD").size().reset_index()
-    active.rename(columns={0: new_col_name}, inplace=True)
-    df_pos_active = df_pos_active.merge(
-        active[["ZIP_CD", new_col_name]], on="ZIP_CD", how="outer").fillna(0)
-
-# Compare number of active hospitals with closures
-df_pos_active["diff_1718"] = df_pos_active["active_2017"] - \
-    df_pos_active["active_2018"]
-df_pos_active["diff_1819"] = df_pos_active["active_2018"] - \
-    df_pos_active["active_2019"]
-```
-
-```{python}
-# Add back to original df
-combined = df_pos_termination.merge(active_counts, on='ZIP_CD')
-```
-
-```{python}
-suspected_closures = combined[(combined["PGM_TRMNTN_CD_2017"].isna() | combined["PGM_TRMNTN_CD_2017"] > 0)]
-```
-
-```{python}
-suspected_closures = combined[(combined["PGM_TRMNTN_CD_2017"].isna() | (combined["PGM_TRMNTN_CD_2017"] > 0)) |
-                              (combined["PGM_TRMNTN_CD_2018"].isna() | (combined["PGM_TRMNTN_CD_2018"] > 0)) |
-                              (combined["PGM_TRMNTN_CD_2019"].isna() | (combined["PGM_TRMNTN_CD_2019"] > 0))]
-```
-
-```{python}
-# Filter out suspected closures where active count does not decrease
-for year in ["PGM_TRMNTN_CD_2016", "PGM_TRMNTN_CD_2017", "PGM_TRMNTN_CD_2018", "PGM_TRMNTN_CD_2019"]:
-    next_year = 'active_' + year[-4:]
-    
-    # Remove suspected closures where active count stays the same or increases
-    test = test[~((test[year].isna() | (test[year] == 1)) & 
-                (test[next_year] >= test['active_' + year[-4:]]))]
-
-# Final DataFrame without suspected closures
-final_df = test.drop(columns=[col for col in test.columns if col.endswith('_count')])
-```
-
-There are three (3) suspect hospital closures that fit the definition of potentially being a merger/acquisition. Two (2) were in 2017 and one (1) was in 2018.
-
-```{python}
-# Fix termination dates to identify suspect hospital closures
-def revise_termination_year(row):
-    if row["PGM_TRMNTN_CD_2016"] != 0:
-        if ((row["PGM_TRMNTN_CD_2017"] == 0) | (row["PGM_TRMNTN_CD_2018"] == 0) | (row["PGM_TRMNTN_CD_2019"] == 0)):
-            return 2016
-    elif row["PGM_TRMNTN_CD_2017"] != 0:
-        return 2017
-    elif row["PGM_TRMNTN_CD_2018"] != 0:
-        return 2018
-    elif row["PGM_TRMNTN_CD_2019"] != 0:
-        return 2019
-    return None
-
-df_pos_termination["TRMNTN_YEAR"] = df_pos_termination.apply(
-    revise_termination_year, axis=1)
-
-# Remove suspect hospital closures
-df_pos_termination_revised = df_pos_termination[df_pos_termination["TRMNTN_YEAR"] != 2016]
-```
-
-```{python}
-        if np.isnan(row["PGM_TRMNTN_CD_2016"]):
-            return None
-```
+There are 8 hospital closures that fall under the definition of potential mergers.
 
     b.
 
 ```{python}
-# Create revised list of closed hospitals
-df_pos2016_active_revised = df_pos_termination_revised[df_pos_termination_revised["PGM_TRMNTN_CD_2016"] == 0]
-closed_hospitals = []
-closed_hospitals = df_pos2016_active_revised["FAC_NAME"][df_pos2016_active_revised["TRMNTN_YEAR"] > 2016].tolist()
-
-len(closed_hospitals)
+# Calculate number of hospitals remaining
+len(closed_hospitals) - len(df_potential_mergers)
 ```
 
+There are 166 terminated hospitals left.
+
     c.
+
+```{python}
+# Sort data
+df_closed_corrected = df_pos_closed[~df_pos_closed["PRVDR_NUM"].isin(
+    df_potential_mergers["PRVDR_NUM"])]
+
+df_closed_corrected.sort_values(by="FAC_NAME", inplace=True)
+df_closed_corrected.head(10)
+```
 
 ## Download Census zip code shapefile (10 pt) 
 
@@ -474,7 +437,8 @@ print(shape_filesizes)
 
 ```{python}
 # Load the shp file
-path_shp = os.path.join(base, r"gz_2010_us_860_00_500k\gz_2010_us_860_00_500k.shp")
+path_shp = os.path.join(
+    base, r"gz_2010_us_860_00_500k\gz_2010_us_860_00_500k.shp")
 df_shp = gpd.read_file(path_shp)
 ```
 
@@ -495,23 +459,27 @@ zip_tx = df_shp_tx["ZCTA5"].value_counts().index.astype(int).to_list()
 
 # Summarize the number of hospitals for each zip code on 2016 subset of POS data
 df_pos2016_short_tx = df_pos2016_short[df_pos2016_short["ZIP_CD"].isin(zip_tx)]
-summary_pos2016_short_tx = df_pos2016_short_tx.groupby("ZIP_CD").size().reset_index()
+summary_pos2016_short_tx = df_pos2016_short_tx.groupby(
+    "ZIP_CD").size().reset_index()
 summary_pos2016_short_tx.columns = ["ZIP_CD", "HOSPITAL_NUM"]
-summary_pos2016_short_tx["ZIP_CD"] =summary_pos2016_short_tx["ZIP_CD"].astype(int)
+summary_pos2016_short_tx["ZIP_CD"] = summary_pos2016_short_tx["ZIP_CD"].astype(
+    int)
 
 # Merge the dataframes
 df_shp_tx_merge = df_shp_tx.merge(
     summary_pos2016_short_tx,
-    left_on = "ZCTA5",
-    right_on = "ZIP_CD",
-    how = "outer"
+    left_on="ZCTA5",
+    right_on="ZIP_CD",
+    how="outer"
 )
 
 # Replace NAs in the number of hospitals with the value 0
-df_shp_tx_merge["HOSPITAL_NUM"] = df_shp_tx_merge["HOSPITAL_NUM"].fillna(0).astype(int).astype("category")
+df_shp_tx_merge["HOSPITAL_NUM"] = df_shp_tx_merge["HOSPITAL_NUM"].fillna(
+    0).astype(int).astype("category")
 
 # Plot the number of hospital in TX on the map
-df_shp_tx_merge.plot(column = "HOSPITAL_NUM", linewidth = 0.5, edgecolor = "0.8", legend = True, figsize = (10, 10))
+df_shp_tx_merge.plot(column="HOSPITAL_NUM", linewidth=0.5,
+                     edgecolor="0.8", legend=True, figsize=(10, 10))
 plt.axis("off")
 plt.title("Number of Hospitals by ZIP code in Texas")
 plt.show
@@ -574,12 +542,15 @@ From the map in the wikipedia page cited in the PDF, the border states has the p
 
 ```{python}
 # Specify zipcodes for border states
-zips_borderstates_centroids = zips_all_centroids[((zips_all_centroids["ZCTA5"] >= 70000) & (zips_all_centroids["ZCTA5"] < 75000)) | ((zips_all_centroids["ZCTA5"] >= 87000) & (zips_all_centroids["ZCTA5"] < 89000))]
+zips_borderstates_centroids = zips_all_centroids[((zips_all_centroids["ZCTA5"] >= 70000) & (
+    zips_all_centroids["ZCTA5"] < 75000)) | ((zips_all_centroids["ZCTA5"] >= 87000) & (zips_all_centroids["ZCTA5"] < 89000))]
 
 # Extract a list of Texas ZIP codes
-zip_borderstates = zips_borderstates_centroids["ZCTA5"].value_counts().index.astype(int).to_list()
+zip_borderstates = zips_borderstates_centroids["ZCTA5"].value_counts(
+).index.astype(int).to_list()
 
-zips_texas_borderstates_centroids = zips_all_centroids[zips_all_centroids["ZCTA5"].isin(tuple(zip_tx + zip_borderstates))]
+zips_texas_borderstates_centroids = zips_all_centroids[zips_all_centroids["ZCTA5"].isin(
+    tuple(zip_tx + zip_borderstates))]
 
 # Count the unique zip codes in the subset
 print(len(zips_texas_borderstates_centroids["ZCTA5"].unique()))
@@ -591,30 +562,36 @@ The Texas and border-states subset includes 4057 unique zip codes.
 
 ```{python}
 # Summarize the number of hospitals for each zip code on 2016 subset of POS data
-df_pos2016_short_tx_borderstates = df_pos2016_short[df_pos2016_short["ZIP_CD"].isin(zip_tx + zip_borderstates)]
-summary_pos2016_short_tx_borderstates = df_pos2016_short_tx_borderstates.groupby("ZIP_CD").size().reset_index()
+df_pos2016_short_tx_borderstates = df_pos2016_short[df_pos2016_short["ZIP_CD"].isin(
+    zip_tx + zip_borderstates)]
+summary_pos2016_short_tx_borderstates = df_pos2016_short_tx_borderstates.groupby(
+    "ZIP_CD").size().reset_index()
 summary_pos2016_short_tx_borderstates.columns = ["ZIP_CD", "HOSPITAL_NUM"]
-summary_pos2016_short_tx_borderstates["ZIP_CD"] =summary_pos2016_short_tx_borderstates["ZIP_CD"].astype(int)
+summary_pos2016_short_tx_borderstates["ZIP_CD"] = summary_pos2016_short_tx_borderstates["ZIP_CD"].astype(
+    int)
 
 # Merge the dataframes
 zips_withhospital_centroids = zips_texas_borderstates_centroids.merge(
     summary_pos2016_short_tx_borderstates,
-    left_on = "ZCTA5",
-    right_on = "ZIP_CD",
-    how = "outer"
+    left_on="ZCTA5",
+    right_on="ZIP_CD",
+    how="outer"
 )
 
 print(zips_withhospital_centroids.head(5))
 
 # Replace NAs in the number of hospitals with the value 0
-zips_withhospital_centroids["HOSPITAL_NUM"] = zips_withhospital_centroids["HOSPITAL_NUM"].fillna(0).astype(int)
+zips_withhospital_centroids["HOSPITAL_NUM"] = zips_withhospital_centroids["HOSPITAL_NUM"].fillna(
+    0).astype(int)
 
-zips_withhospital_centroids["HOSPITAL"] = [x != 0 for x in zips_withhospital_centroids["HOSPITAL_NUM"]]
+zips_withhospital_centroids["HOSPITAL"] = [
+    x != 0 for x in zips_withhospital_centroids["HOSPITAL_NUM"]]
 
 print(zips_withhospital_centroids)
 
 # Plot a choropleth of directly affected ZIP codes
-zips_withhospital_centroids.plot(column = "HOSPITAL", linewidth = 1, edgecolor = "0.8", legend = True, figsize = (10, 10))
+zips_withhospital_centroids.plot(
+    column="HOSPITAL", linewidth=1, edgecolor="0.8", legend=True, figsize=(10, 10))
 plt.axis("off")
 plt.title("ZIP codes in Texas and border-states with hospital(s) in 2016")
 plt.show
@@ -669,8 +646,8 @@ start = time.time()
 join_tx = gpd.sjoin_nearest(
     zips_texas_centroids,
     zips_withhospital_centroids,
-    how = "right",
-    distance_col = "distance"
+    how="right",
+    distance_col="distance"
 )
 
 # Find out nearest distance for each TX ZIP code
@@ -685,7 +662,7 @@ time_count = time.time() - start
 
 # Show the lap time once the row number is correct
 print("To join the datasets, it took approximately",
- round(time_count, 2), "seconds, which is the quite same level as the test, against our estimation above.")
+      round(time_count, 2), "seconds, which is the quite same level as the test, against our estimation above.")
 ```
 
     c. As the .prj file notes, its unit is a degree (of latitude). A degree of latitude is constantly apploximately convertible to 69 miles, while longitude varies depend on the location, but still maximum about 69 miles.(https://www.thoughtco.com/degree-of-latitude-and-longitude-distance-4070616)
@@ -700,7 +677,8 @@ print("To join the datasets, it took approximately",
 
 ```{python}
 # Summarize average distance from the nearest hospital (by ZIP code where the hospital locates) for each ZIP code
-join_tx_avg = join_tx.groupby("ZCTA5_left")["distance"].agg("mean").reset_index(name = "distance")
+join_tx_avg = join_tx.groupby("ZCTA5_left")["distance"].agg(
+    "mean").reset_index(name="distance")
 
 # Convert to mile
 join_tx_avg["distance"] = join_tx_avg["distance"] * 69
@@ -714,15 +692,17 @@ print(join_tx_avg)
 # Merge the dataframes
 zips_texas_centroids_merge = zips_texas_centroids.merge(
     join_tx_avg,
-    left_on = "ZCTA5",
-    right_on = "ZCTA5_left",
-    how = "right"
+    left_on="ZCTA5",
+    right_on="ZCTA5_left",
+    how="right"
 )
 
 # Plot the number of hospital in TX on the map
-zips_texas_centroids_merge.plot(column = "distance", linewidth = 0.5, edgecolor = "0.8", cmap = "OrRd", legend = True, figsize = (10, 10))
+zips_texas_centroids_merge.plot(column="distance", linewidth=0.5,
+                                edgecolor="0.8", cmap="OrRd", legend=True, figsize=(10, 10))
 plt.axis("off")
-plt.title("Average Distance to the Nearest Hospitals Hospitals by ZIP code in Texas(mil))")
+plt.title(
+    "Average Distance to the Nearest Hospitals Hospitals by ZIP code in Texas(mil))")
 plt.show
 ```
 
@@ -733,10 +713,12 @@ plt.show
 ```{python}
 # Subset the appended dataset
 df_pos_append["ZIP_CD"] = df_pos_append["ZIP_CD"].astype(int)
-df_pos_append_tx = df_pos_append[(df_pos_append["ZIP_CD"] >= 75000) & (df_pos_append["ZIP_CD"] < 80000)]
+df_pos_append_tx = df_pos_append[(df_pos_append["ZIP_CD"] >= 75000) & (
+    df_pos_append["ZIP_CD"] < 80000)]
 
 # Summarize the number of directly affected zip codes
-summary_direct = df_pos_append_tx[df_pos_append_tx["PGM_TRMNTN_CD"] != 0].groupby(["ZIP_CD", "FAC_NAME"]).size().reset_index()
+summary_direct = df_pos_append_tx[df_pos_append_tx["PGM_TRMNTN_CD"] != 0].groupby(
+    ["ZIP_CD", "FAC_NAME"]).size().reset_index()
 
 summary_direct = summary_direct.groupby("ZIP_CD").size().reset_index()
 summary_direct.columns = ["ZIP code", "Number of closures"]
@@ -750,19 +732,22 @@ print(summary_direct)
 # Merge the summary to the GeoDataFrame
 df_shp_tx_merge = df_shp_tx_merge.merge(
     summary_direct,
-    left_on = "ZCTA5",
-    right_on = "ZIP code",
-    how = "outer"
+    left_on="ZCTA5",
+    right_on="ZIP code",
+    how="outer"
 )
 
-df_shp_tx_merge["DIRECT"] =df_shp_tx_merge["Number of closures"].apply(pd.isna)
+df_shp_tx_merge["DIRECT"] = df_shp_tx_merge["Number of closures"].apply(
+    pd.isna)
 
 # Dissolve the GeoDataFrame by the parameter for directly affected ZIP codes
-dissolved = df_shp_tx_merge[["ZCTA5","geometry", "DIRECT"]].dissolve(by = "DIRECT", aggfunc = "sum").reset_index()
+dissolved = df_shp_tx_merge[["ZCTA5", "geometry", "DIRECT"]].dissolve(
+    by="DIRECT", aggfunc="sum").reset_index()
 dissolved
 
 # Plot a choropleth of directly affected ZIP codes
-dissolved.plot(column = "DIRECT", linewidth = 1, edgecolor = "0.8", legend = True, figsize = (10, 10))
+dissolved.plot(column="DIRECT", linewidth=1, edgecolor="0.8",
+               legend=True, figsize=(10, 10))
 plt.axis("off")
 plt.title("Directly Affected ZIP codes in Texas")
 plt.show
@@ -786,7 +771,8 @@ buffer_10 = direct_zips.copy()
 buffer_10["geometry"] = buffer_10.geometry.buffer(10)
 
 # Spatial join with the overall Texas zip code shapefile
-indirect_zips = gpd.sjoin(df_shp_tx, buffer_10, how = "inner", predicate = "intersects")
+indirect_zips = gpd.sjoin(df_shp_tx, buffer_10,
+                          how="inner", predicate="intersects")
 
 print(len(indirect_zips))
 
@@ -799,9 +785,10 @@ There are 1935 indirectly affected zipcodes in Texas.
 ```{python}
 # BUFFER IS WIREDLY BROAD
 fig, ax = plt.subplots()
-direct_zips.plot(ax = ax, color = "red", alpha = 0.7, label = "Direct").set_axis_off()
-buffer_10.plot(ax = ax, color = "purple", alpha = 0.5, label = "10-mile").set_axis_off()
-indirect_zips.plot(ax = ax, color = "blue", alpha = 0.3, label = "Indirect")
+direct_zips.plot(ax=ax, color="red", alpha=0.7, label="Direct").set_axis_off()
+buffer_10.plot(ax=ax, color="purple", alpha=0.5,
+               label="10-mile").set_axis_off()
+indirect_zips.plot(ax=ax, color="blue", alpha=0.3, label="Indirect")
 
 plt.show()
 ```
@@ -810,3 +797,5 @@ plt.show()
 (Partner 1: Hiro) 
 
 (Partner 2: Luis)
+
+As our research design simply focus on geographical distance (impact of closures to those who arewithin the same ZIP codes, or within 10 miles distance), it might not reflect the real usage of hospitals by residents. For instance, as we ignore their preferences or genres of hospitals correlated to diseases categories, thus some people might have been using specific hospitals which is not the nearest ones from their place. Also, we ignore the transportation and the concentration of hospitals (hospitals might be originally concentrated on large city and frequently used by residents living broadly around the city). To improve this research from those reflection, we can merge additional attributes to the GeoDataFrame, such as the population for each ZIP code, the concentration of hospitals (= number of hospitals per ZIP code), and if possible, parameter of whether major transportation (railway, bus, highway) exists in the ZIP code or not.
