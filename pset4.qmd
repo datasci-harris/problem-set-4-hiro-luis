@@ -94,8 +94,8 @@ The variables we selected are;
 
 ```{python}
 # Set the absolute path of the data folder
-base = (r"C:\Users\hkura\Documents\Uchicago\04 2024 Autumn\Python2\problem-set-4-hiro-luis\data")
-# base = (r"C:\Users\LUIS\Documents\GitHub\problem-set-4-hiro-luis\data")
+# base = (r"C:\Users\hkura\Documents\Uchicago\04 2024 Autumn\Python2\problem-set-4-hiro-luis\data")
+base = (r"C:\Users\LUIS\Documents\GitHub\problem-set-4-hiro-luis\data")
 path_data_2016 = os.path.join(base, "pos2016.csv")
 
 # Load 2016 dataset
@@ -304,12 +304,33 @@ df_pos_closed.head(10)
 
 ```{python}
 # Count number of active hospitals per year
+df_pos_active2016 = df_pos_termination[df_pos_termination["PGM_TRMNTN_CD_2016"] == 0][["PRVDR_NUM", "FAC_NAME", "ZIP_CD"]]
+
+df_suspect_closures = pd.DataFrame()
+status_per_year = ["PGM_TRMNTN_CD_2017", "PGM_TRMNTN_CD_2018", "PGM_TRMNTN_CD_2019"]
+
+for year, status in zip([2017, 2018, 2019], status_per_year):
+    active = df_pos_termination[df_pos_termination[status] == 0]["PRVDR_NUM"]
+    closures = df_pos_active2016[~df_pos_active2016["PRVDR_NUM"].isin(active)]
+    closures["TRMNTN_YEAR"] = year
+
+    suspect_closures = pd.concat([df_suspect_closures, closures])
+
+    df_pos_active2016 = df_pos_active2016[df_pos_active2016["PRVDR_NUM"].isin(active)]
+```
+
+```{python}
+# Count number of active hospitals per year
 active_counts = df_pos_termination.groupby("ZIP_CD").agg(
     active_2016=("PGM_TRMNTN_CD_2016", lambda x: (x == 0).sum()),
     active_2017=("PGM_TRMNTN_CD_2017", lambda x: (x == 0).sum()),
     active_2018=("PGM_TRMNTN_CD_2018", lambda x: (x == 0).sum()),
     active_2019=("PGM_TRMNTN_CD_2019", lambda x: (x == 0).sum())
 ).reset_index()
+```
+
+```{python}
+a
 ```
 
 ```{python}
@@ -499,16 +520,212 @@ plt.show
 ## Calculate zip code’s distance to the nearest hospital (20 pts) (*)
 
 1. 
+
+```{python}
+# Create a centroid column for all ZIP codes
+zips_all_centroids = df_shp.copy()
+
+zips_all_centroids["geometry"] = zips_all_centroids.centroid
+
+print(zips_all_centroids.head())
+```
+
+Dimentions:
+
+```{python}
+print(zips_all_centroids.shape)
+```
+
+33120 rows and 6 columns.
+
+Columns: the columuns in the dataset is below;
+
+```{python}
+print(zips_all_centroids.columns)
+```
+
+And from the metadata, the meaning for each column is;
+
+- "GEO_ID": A unique identifier for each geographic entity
+
+- "ZCTA5": The 5-digit ZIP Code Tabulation Area code
+
+- "NAME": The name of the geographic entity
+
+- "LSAD": Legal/Statistical Area Description code
+
+- "CENSUSAREA": The area of the entity in square miles
+
+- "geometry": the geometries (polygons) for each area
+
 2. 
+
+```{python}
+# Create subset for all zip codes in Texas
+zips_texas_centroids = zips_all_centroids[zips_all_centroids["ZCTA5"].isin(zip_tx)]
+
+# Count the unique zip codes in the subset
+print(len(zips_texas_centroids["ZCTA5"].unique()))
+```
+
+The Texas subset includes 1935 unique zip codes.
+
+From the map in the wikipedia page cited in the PDF, the border states has the prefixes for Zip code of "70", "71", "72", "73", "74", "87", "88". Thus; 
+
+```{python}
+# Specify zipcodes for border states
+zips_borderstates_centroids = zips_all_centroids[((zips_all_centroids["ZCTA5"] >= 70000) & (zips_all_centroids["ZCTA5"] < 75000)) | ((zips_all_centroids["ZCTA5"] >= 87000) & (zips_all_centroids["ZCTA5"] < 89000))]
+
+# Extract a list of Texas ZIP codes
+zip_borderstates = zips_borderstates_centroids["ZCTA5"].value_counts().index.astype(int).to_list()
+
+zips_texas_borderstates_centroids = zips_all_centroids[zips_all_centroids["ZCTA5"].isin(tuple(zip_tx + zip_borderstates))]
+
+# Count the unique zip codes in the subset
+print(len(zips_texas_borderstates_centroids["ZCTA5"].unique()))
+```
+
+The Texas and border-states subset includes 4057 unique zip codes.
+
 3. 
+
+```{python}
+# Summarize the number of hospitals for each zip code on 2016 subset of POS data
+df_pos2016_short_tx_borderstates = df_pos2016_short[df_pos2016_short["ZIP_CD"].isin(zip_tx + zip_borderstates)]
+summary_pos2016_short_tx_borderstates = df_pos2016_short_tx_borderstates.groupby("ZIP_CD").size().reset_index()
+summary_pos2016_short_tx_borderstates.columns = ["ZIP_CD", "HOSPITAL_NUM"]
+summary_pos2016_short_tx_borderstates["ZIP_CD"] =summary_pos2016_short_tx_borderstates["ZIP_CD"].astype(int)
+
+# Merge the dataframes
+zips_withhospital_centroids = zips_texas_borderstates_centroids.merge(
+    summary_pos2016_short_tx_borderstates,
+    left_on = "ZCTA5",
+    right_on = "ZIP_CD",
+    how = "outer"
+)
+
+print(zips_withhospital_centroids.head(5))
+
+# Replace NAs in the number of hospitals with the value 0
+zips_withhospital_centroids["HOSPITAL_NUM"] = zips_withhospital_centroids["HOSPITAL_NUM"].fillna(0).astype(int)
+
+zips_withhospital_centroids["HOSPITAL"] = [x != 0 for x in zips_withhospital_centroids["HOSPITAL_NUM"]]
+
+print(zips_withhospital_centroids)
+
+# Plot a choropleth of directly affected ZIP codes
+zips_withhospital_centroids.plot(column = "HOSPITAL", linewidth = 1, edgecolor = "0.8", legend = True, figsize = (10, 10))
+plt.axis("off")
+plt.title("ZIP codes in Texas and border-states with hospital(s) in 2016")
+plt.show
+```
+
+We merged the GeoDataFrame "zips_texas_borderstates_centroids" with the pos data for short-term hospitals in 2016 merging on Zip codes of the area and adding the variables of the geometries(centroid point for each ZIP codes) and the parameter of whether the ZIP had at least one hospital in 2016.
+
 4. 
     a.
+
+```{python}
+# Create a subset of 10 zip codes in TX for testing the calculation of distance
+zips_texas_test = zips_texas_centroids.head(10)
+
+# Start timer
+start = time.time()
+
+# Join the dataframes
+join_test = gpd.sjoin_nearest(
+    zips_texas_test,
+    zips_withhospital_centroids,
+    how = "right",
+    distance_col = "distance"
+)
+
+# Find out nearest distance for each TX ZIP code
+join_test_result = join_test.loc[join_test.groupby("ZCTA5_left")["distance"].idxmin()]
+
+print("For each ZIP code in Texas ('ZCTA5_left'), the minimum distance to the nearest ZIP code with at least one hospital ('ZCTA5_right') is:")
+
+print(join_test_result[["ZCTA5_left", "ZCTA5_right", "distance"]].head(5))
+
+# Count the lap time
+time_count = time.time() - start
+
+# Show the lap time once the row number is correct
+print("This time, to join the datasets, it took approximately",
+ round(time_count, 2), "seconds.")
+
+time_estimate = (time_count * 1935 / 10)
+
+print(f"As there are 1935 ZIP codes in Texas, we can estimate that it would take approximately {round(time_count, 2)} * 1935 / 10 = {round(time_estimate, 2)} seconds.")
+```
+
     b.
+
+```{python}
+# Start timer
+start = time.time()
+
+# Join the dataframes
+join_tx = gpd.sjoin_nearest(
+    zips_texas_centroids,
+    zips_withhospital_centroids,
+    how = "right",
+    distance_col = "distance"
+)
+
+# Find out nearest distance for each TX ZIP code
+join_tx_min = join_tx.loc[join_tx.groupby("ZCTA5_left")["distance"].idxmin()]
+
+print("For each ZIP code in Texas ('ZCTA5_left'), the minimum distance to the nearest ZIP code with at least one hospital ('ZCTA5_right') is:")
+
+print(join_tx_min[["ZCTA5_left", "ZCTA5_right", "distance"]].head(5))
+
+# Count the lap time
+time_count = time.time() - start
+
+# Show the lap time once the row number is correct
+print("To join the datasets, it took approximately",
+ round(time_count, 2), "seconds, which is the quite same level as the test, against our estimation above.")
+```
+
+    c. As the .prj file notes, its unit is a degree (of latitude). A degree of latitude is constantly apploximately convertible to 69 miles, while longitude varies depend on the location, but still maximum about 69 miles.(https://www.thoughtco.com/degree-of-latitude-and-longitude-distance-4070616)
+
+    Thus, when interpret the dataset according to the .prj file, it would be suitable to estimate 1 degree = 69 miles.
+
+
 5. 
-    a.
-    b.
+    a. The unit is a degree.
+
+    b. 
+
+```{python}
+# Summarize average distance from the nearest hospital (by ZIP code where the hospital locates) for each ZIP code
+join_tx_avg = join_tx.groupby("ZCTA5_left")["distance"].agg("mean").reset_index(name = "distance")
+
+# Convert to mile
+join_tx_avg["distance"] = join_tx_avg["distance"] * 69
+
+print(join_tx_avg)
+```
+
     c.
-    
+
+```{python}
+# Merge the dataframes
+zips_texas_centroids_merge = zips_texas_centroids.merge(
+    join_tx_avg,
+    left_on = "ZCTA5",
+    right_on = "ZCTA5_left",
+    how = "right"
+)
+
+# Plot the number of hospital in TX on the map
+zips_texas_centroids_merge.plot(column = "distance", linewidth = 0.5, edgecolor = "0.8", cmap = "OrRd", legend = True, figsize = (10, 10))
+plt.axis("off")
+plt.title("Average Distance to the Nearest Hospitals Hospitals by ZIP code in Texas(mil))")
+plt.show
+```
+
 ## Effects of closures on access in Texas (15 pts)
 
 1. 
