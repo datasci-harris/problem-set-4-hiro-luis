@@ -267,19 +267,22 @@ df_pos_termination["TRMNTN_YEAR"] = df_pos_termination.apply(
     add_termination_year, axis=1)
 ```
 
+
 ```{python}
 # Create list of closed hospitals that were active in 2016
-df_pos2016_active = df_pos_termination[df_pos_termination["PGM_TRMNTN_CD_2016"] == 0]
+df_pos_active2016 = df_pos_termination[df_pos_termination["PGM_TRMNTN_CD_2016"] == 0]
 closed_hospitals = []
-closed_hospitals = df_pos2016_active["FAC_NAME"][df_pos2016_active["TRMNTN_YEAR"] > 2016].tolist()
+closed_hospitals = df_pos_active2016["FAC_NAME"][df_pos_termination["TRMNTN_YEAR"] > 2016].tolist()
 
 len(closed_hospitals)
 ```
 
+174 hospitals
+
 ```{python}
 # Create df of closed hospitals
 # MAY NEED TO CHANGE TO LIST
-df_pos_closed = df_pos_termination.loc[df_pos_termination["TRMNTN_YEAR"].notna()]
+df_pos_closed = df_pos_active2016.loc[df_pos_active2016["TRMNTN_YEAR"].notna()]
 df_pos_closed = df_pos_closed[["FAC_NAME", "ZIP_CD", "TRMNTN_YEAR"]]
 ```
 
@@ -296,6 +299,17 @@ df_pos_closed.head(10)
 
 ```{python}
 # Count number of active hospitals per year
+active_counts = df_pos_termination.groupby("ZIP_CD").agg(
+    active_2016=("PGM_TRMNTN_CD_2016", lambda x: (x == 0).sum()),
+    active_2017=("PGM_TRMNTN_CD_2017", lambda x: (x == 0).sum()),
+    active_2018=("PGM_TRMNTN_CD_2018", lambda x: (x == 0).sum()),
+    active_2019=("PGM_TRMNTN_CD_2019", lambda x: (x == 0).sum())
+).reset_index()
+```
+
+```{python}
+# SKIP
+# Count number of active hospitals per year
 df_pos_active = df_pos_termination[df_pos_termination["PGM_TRMNTN_CD_2016"] == 0].groupby(
     "ZIP_CD").size().reset_index(name="active_2017")
 
@@ -308,14 +322,40 @@ for col_index in range(-4, -2, 1):
     active.rename(columns={0: new_col_name}, inplace=True)
     df_pos_active = df_pos_active.merge(
         active[["ZIP_CD", new_col_name]], on="ZIP_CD", how="outer").fillna(0)
-```
 
-```{python}
 # Compare number of active hospitals with closures
 df_pos_active["diff_1718"] = df_pos_active["active_2017"] - \
     df_pos_active["active_2018"]
 df_pos_active["diff_1819"] = df_pos_active["active_2018"] - \
     df_pos_active["active_2019"]
+```
+
+```{python}
+# Add back to original df
+combined = df_pos_termination.merge(active_counts, on='ZIP_CD')
+```
+
+```{python}
+suspected_closures = combined[(combined["PGM_TRMNTN_CD_2017"].isna() | combined["PGM_TRMNTN_CD_2017"] > 0)]
+```
+
+```{python}
+suspected_closures = combined[(combined["PGM_TRMNTN_CD_2017"].isna() | (combined["PGM_TRMNTN_CD_2017"] > 0)) |
+                              (combined["PGM_TRMNTN_CD_2018"].isna() | (combined["PGM_TRMNTN_CD_2018"] > 0)) |
+                              (combined["PGM_TRMNTN_CD_2019"].isna() | (combined["PGM_TRMNTN_CD_2019"] > 0))]
+```
+
+```{python}
+# Filter out suspected closures where active count does not decrease
+for year in ["PGM_TRMNTN_CD_2016", "PGM_TRMNTN_CD_2017", "PGM_TRMNTN_CD_2018", "PGM_TRMNTN_CD_2019"]:
+    next_year = 'active_' + year[-4:]
+    
+    # Remove suspected closures where active count stays the same or increases
+    test = test[~((test[year].isna() | (test[year] == 1)) & 
+                (test[next_year] >= test['active_' + year[-4:]]))]
+
+# Final DataFrame without suspected closures
+final_df = test.drop(columns=[col for col in test.columns if col.endswith('_count')])
 ```
 
 There are three (3) suspect hospital closures that fit the definition of potentially being a merger/acquisition. Two (2) were in 2017 and one (1) was in 2018.
