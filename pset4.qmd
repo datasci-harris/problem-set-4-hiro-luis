@@ -36,11 +36,11 @@ We use (`*`) to indicate a problem that we think might be time consuming.
 
 3. Partner 1 will accept the ps4 and then share the link it creates with their partner. You can only share it with one partner so you will not be able to change it after your partner has accepted.
 
-4. “This submission is our work alone and complies with the 30538 integrity policy.” Add your initials to indicate your agreement: **HK** **__**
+4. “This submission is our work alone and complies with the 30538 integrity policy.” Add your initials to indicate your agreement: **HK** **LS**
 
 5. “I have uploaded the names of anyone else other than my partner and I worked with on the problem set here” (1 point)
 
-6. Late coins used this pset: **__** Late coins left after submission: **__**
+6. Late coins used this pset: **01** Late coins left after submission: **02**
 
 7. Knit your ps4.qmd to an PDF file to make ps4.pdf,
 
@@ -51,8 +51,6 @@ We use (`*`) to indicate a problem that we think might be time consuming.
 9. (Partner 1): submit ps4.pdf via Gradescope. Add your partner on Gradescope.
 
 10. (Partner 1): tag your submission in Gradescope
-
-**Important:** Repositories are for tracking code. **Do not commit the data or shapefiles to your repo.** The best way to do this is with `.gitignore`, which we have covered in class. If you do accidentally commit the data, Github has a [guide](https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-large-files-on-github#removing-files-from-a-repositorys-history). The best course of action depends on whether you have pushed yet. This also means that both partners will have to download the initial raw data and any data cleaning code will need to be re-run on both partners' computers.
 
 ```{python}
 import os
@@ -96,8 +94,8 @@ The variables we selected are;
 
 ```{python}
 # Set the absolute path of the data folder
-# base = (r"C:\Users\hkura\Documents\Uchicago\04 2024 Autumn\Python2\problem-set-4-hiro-luis\data")
-base = (r"C:\Users\LUIS\Documents\GitHub\problem-set-4-hiro-luis\data")
+base = (r"C:\Users\hkura\Documents\Uchicago\04 2024 Autumn\Python2\problem-set-4-hiro-luis\data")
+# base = (r"C:\Users\LUIS\Documents\GitHub\problem-set-4-hiro-luis\data")
 path_data_2016 = os.path.join(base, "pos2016.csv")
 
 # Load 2016 dataset
@@ -131,7 +129,9 @@ print(len(df_pos2016_short))
 print(len(df_pos2016))
 ```
 
-    b. We couldn't find references which includes the exact number of short-term hospitals at the end of 2016, but the 2016 CMS statistics specifies the number as 3,436 for the Dec 31, 2015, which is the most recent data available in the search result(https://www.cms.gov/Research-Statistics-Data-and-Systems/Statistics-Trends-and-Reports/CMS-Statistics-Reference-Booklet/Downloads/2016_CMS_Stats.pdf).
+    b. We couldn't find references which includes the exact number of short-term hospitals at the end of 2016, but the 2016 CMS statistics specifies the number as 3,436 for the Dec 31, 2015, which is the most recent data available in the search result(https://www.cms.gov/Research-Statistics-Data-and-Systems/Statistics-
+    Trends-and-Reports/CMS-Statistics-Reference-Booklet/
+    Downloads/2016_CMS_Stats.pdf).
 
     Considering the number 3,436 at the end of 2015, 7245 is drastically larger, even considering the change in one year.
 
@@ -371,10 +371,7 @@ len(df_potential_mergers)
 
 There are 8 hospital closures that fall under the definition of potential mergers.
 
-    b.
-
 ```{python}
-
 # Calculate number of hospitals remaining
 len(closed_hospitals) - len(df_potential_mergers)
 ```
@@ -488,6 +485,7 @@ df_shp_tx_merge["HOSPITAL_NUM"] = df_shp_tx_merge["HOSPITAL_NUM"].fillna(
 # Plot the number of hospital in TX on the map
 df_shp_tx_merge.plot(column="HOSPITAL_NUM", linewidth=0.5,
                      edgecolor="0.8", legend=True, figsize=(10, 10))
+
 plt.axis("off")
 plt.title("Number of Hospitals by ZIP code in Texas")
 plt.show
@@ -502,8 +500,6 @@ plt.show
 zips_all_centroids = df_shp.copy()
 
 zips_all_centroids["geometry"] = zips_all_centroids.centroid
-
-print(zips_all_centroids.head())
 ```
 
 Dimentions:
@@ -605,7 +601,7 @@ plt.title("ZIP codes in Texas and border-states with hospital(s) in 2016")
 plt.show
 ```
 
-We merged the GeoDataFrame "zips_texas_borderstates_centroids" with the pos data for short-term hospitals in 2016 merging on Zip codes of the area and adding the variables of the geometries(centroid point for each ZIP codes) and the parameter of whether the ZIP had at least one hospital in 2016.
+We merged the GeoDataFrame "zips_texas_borderstates_centroids" with the pos data for short-term hospitals in 2016 merging on Zip codes of the area , filtering to the ZIP codes whose "HOSPITAL_NUM" is not 0 (those which had at least one hospital in 2016).
 
 4. 
     a.
@@ -621,16 +617,12 @@ start = time.time()
 join_test = gpd.sjoin_nearest(
     zips_texas_test,
     zips_withhospital_centroids,
-    how = "right",
+    how = "inner",
     distance_col = "distance"
 )
 
 # Find out nearest distance for each TX ZIP code
 join_test_result = join_test.loc[join_test.groupby("ZCTA5_left")["distance"].idxmin()]
-
-print("For each ZIP code in Texas ('ZCTA5_left'), the minimum distance to the nearest ZIP code with at least one hospital ('ZCTA5_right') is:")
-
-print(join_test_result[["ZCTA5_left", "ZCTA5_right", "distance"]].head(5))
 
 # Count the lap time
 time_count = time.time() - start
@@ -661,10 +653,6 @@ join_tx = gpd.sjoin_nearest(
 # Find out nearest distance for each TX ZIP code
 join_tx_min = join_tx.loc[join_tx.groupby("ZCTA5_left")["distance"].idxmin()]
 
-print("For each ZIP code in Texas ('ZCTA5_left'), the minimum distance to the nearest ZIP code with at least one hospital ('ZCTA5_right') is:")
-
-print(join_tx_min[["ZCTA5_left", "ZCTA5_right", "distance"]].head(5))
-
 # Count the lap time
 time_count = time.time() - start
 
@@ -691,8 +679,12 @@ join_tx_avg = join_tx.groupby("ZCTA5_left")["distance"].agg(
 # Convert to mile
 join_tx_avg["distance"] = join_tx_avg["distance"] * 69
 
-print(join_tx_avg)
+avg_join_tx_avg = join_tx_avg["distance"].mean()
+
+print(avg_join_tx_avg)
 ```
+
+        This intuitively makes sense.
 
     c.
 
@@ -708,6 +700,7 @@ zips_texas_centroids_merge = zips_texas_centroids.merge(
 # Plot the number of hospital in TX on the map
 zips_texas_centroids_merge.plot(column="distance", linewidth=0.5,
                                 edgecolor="0.8", cmap="OrRd", legend=True, figsize=(10, 10))
+
 plt.axis("off")
 plt.title(
     "Average Distance to the Nearest Hospitals Hospitals by ZIP code in Texas(mil))")
@@ -756,6 +749,7 @@ dissolved
 # Plot a choropleth of directly affected ZIP codes
 dissolved.plot(column="DIRECT", linewidth=1, edgecolor="0.8",
                legend=True, figsize=(10, 10))
+
 plt.axis("off")
 plt.title("Directly Affected ZIP codes in Texas")
 plt.show
@@ -803,6 +797,7 @@ plt.show()
 
 ## Reflecting on the exercise (10 pts) 
 (Partner 1: Hiro) 
+One possible reason for the number of active hospitals in a zip code to not decrease is the opening of a totally new hospital. The "first-pass" method does not distinguish between a potential merger (where the hospital name/address is the same) and the opening of a totally new hospital. In such a case, a valid closure would not be counted. To get a more accurate confirmation of hospital closures in using the "first-pass" method, we could also look at a secondary datapoint such as address which is harder to change compared to hospital name. Another possible way is to add more details in the termination status column. For example, a code specific for mergers could be added that would make it easier to filter these entries.
 
 (Partner 2: Luis)
 
